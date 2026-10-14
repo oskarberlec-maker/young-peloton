@@ -31,7 +31,39 @@ export const Route = createFileRoute("/")({
 // Možnosti filtrov niso podatki o dirkah ali potrditev pokritosti države.
 const COUNTRIES = ["Albanija", "Andora", "Avstrija", "Belgija", "Belorusija", "Bosna in Hercegovina", "Bolgarija", "Ciper", "Češka", "Črna gora", "Danska", "Estonija", "Finska", "Francija", "Grčija", "Hrvaška", "Irska", "Islandija", "Italija", "Kosovo", "Latvija", "Lihtenštajn", "Litva", "Luksemburg", "Madžarska", "Malta", "Moldavija", "Monako", "Nemčija", "Nizozemska", "Norveška", "Poljska", "Portugalska", "Romunija", "Rusija", "San Marino", "Severna Makedonija", "Slovaška", "Slovenija", "Srbija", "Španija", "Švedska", "Švica", "Turčija", "Ukrajina", "Vatikan", "Združeno kraljestvo"];
 const CATEGORIES = [{ value: "U19M", label: "U19M — moški" }, { value: "U19Ž", label: "U19Ž — ženske" }];
-const RACE_TYPES = ["Enodnevna dirka", "Etapna dirka", "Posamični kronometer", "Ekipni kronometer"];
+const RACE_TYPES = ["Enodnevna dirka", "Etapna dirka", "Posamični kronometer", "Ekipni kronometer", "Kriterij"];
+
+const PROVISIONAL_LABEL = "Okvirni datum — čaka se uradna potrditev";
+const MONTHS = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
+const PERIOD_LABEL = { early: "začetek", mid: "sredina", late: "konec", "mid-late": "sredina/konec", any: "" } as const;
+
+// Okvirni (neuradni) vnosi za Slovenijo. Brez točnih dni — samo okvirno obdobje meseca,
+// izpeljano iz vzorca koledarja 2026. Popravimo jih, ko bodo objavljeni uradni datumi.
+type Race = {
+  id: string; name: string; place: string; country: string; categories: string[];
+  type: string | null; month: number; period: keyof typeof PERIOD_LABEL; extraTentative?: boolean;
+};
+const RACES: Race[] = [
+  { id: "piran", name: "Piran", place: "Piran", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 3, period: "late" },
+  { id: "kamnik", name: "Kamnik", place: "Kamnik", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 4, period: "mid" },
+  { id: "domzale", name: "Domžale", place: "Domžale", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 4, period: "mid" },
+  { id: "ptuj", name: "Ptuj", place: "Ptuj", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 5, period: "any", extraTentative: true },
+  { id: "maribor", name: "Maribor", place: "Maribor", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 6, period: "early" },
+  { id: "dptt", name: "DPTT — državno prvenstvo v vožnji na čas", place: "Slovenija", country: "Slovenija", categories: ["U19M", "U19Ž"], type: "Posamični kronometer", month: 6, period: "late" },
+  { id: "dproad", name: "DProad — državno prvenstvo v cestni dirki", place: "Slovenija", country: "Slovenija", categories: ["U19M", "U19Ž"], type: "Enodnevna dirka", month: 6, period: "late" },
+  { id: "gorje", name: "Gorje", place: "Gorje", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 7, period: "mid" },
+  { id: "pokljuka", name: "Pokljuka", place: "Pokljuka", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 7, period: "mid-late" },
+  { id: "kriterij-tp", name: "Kriterij Tadeja Pogačarja (Kriterij TP)", place: "Slovenija", country: "Slovenija", categories: ["U19M", "U19Ž"], type: "Kriterij", month: 7, period: "late" },
+  { id: "sencur", name: "Šenčur", place: "Šenčur", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 8, period: "late" },
+  { id: "kranj-kriterij", name: "Kranj kriterij", place: "Kranj", country: "Slovenija", categories: ["U19M", "U19Ž"], type: "Kriterij", month: 8, period: "late" },
+  { id: "kranj-cestna", name: "Kranj cestna dirka", place: "Kranj", country: "Slovenija", categories: ["U19M", "U19Ž"], type: "Enodnevna dirka", month: 8, period: "late" },
+  { id: "vn-dm", name: "VN DM", place: "Slovenija", country: "Slovenija", categories: ["U19M", "U19Ž"], type: null, month: 10, period: "any" },
+];
+
+function windowLabel(race: Race) {
+  const p = PERIOD_LABEL[race.period];
+  return p ? `${p} ${MONTHS[race.month - 1]}a`.replace("ja" + "a", "ja") : MONTHS[race.month - 1];
+}
 
 function FilterSelect({ id, label, value, onChange, allLabel, options }: {
   id: string; label: string; value: string; onChange: (value: string) => void; allLabel: string;
