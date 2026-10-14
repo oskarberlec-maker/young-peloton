@@ -87,3 +87,7 @@
     color: var(--color-lime-foreground);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
