@@ -31,18 +31,23 @@ export const Route = createFileRoute("/")({
 // Filter options are not race data or confirmation of country coverage.
 const COUNTRIES = ["Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Turkey", "Ukraine", "United Kingdom", "Vatican City"];
 const CATEGORIES = [{ value: "U19M", label: "U19 Men" }, { value: "U19Ž", label: "U19 Women" }];
-const RACE_TYPES = ["Road race", "Stage race", "Individual time trial", "Team time trial", "Criterium"];
+const RACE_TYPES = ["Road race", "Stage race", "Individual time trial", "Team time trial", "Criterium", "Circuit race"];
 
 const PROVISIONAL_LABEL = "Approximate date — awaiting official confirmation";
+const AT_2027_LABEL = "Approximate 2027 date — based on 2026 edition; awaiting official confirmation";
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const PERIOD_LABEL = { early: "Early", mid: "Mid", late: "Late", "mid-late": "Mid/late", any: "" } as const;
+const PERIOD_ORDER = { early: 0, mid: 1, "mid-late": 2, late: 3, any: 4 } as const;
 
-// Provisional (unofficial) entries for Slovenia. No exact days — only an approximate window within the month,
-// based on the 2026 calendar pattern. Corrected once official dates are published.
+// Provisional (unofficial) entries. No exact days — only an approximate window within the month.
+// Corrected once official dates are published.
 type Race = {
   id: string; name: string; place: string; country: string; categories: string[];
-  type: string | null; month: number; period: keyof typeof PERIOD_LABEL; extraTentative?: boolean;
+  type: string | null; month: number; period: keyof typeof PERIOD_LABEL; extraTentative?: boolean; label?: string;
 };
+const U19 = ["U19M", "U19Ž"];
+const at = (id: string, name: string, place: string, type: string | null, month: number, period: Race["period"]): Race =>
+  ({ id, name, place, country: "Austria", categories: U19, type, month, period, label: AT_2027_LABEL });
 const RACES: Race[] = [
   { id: "piran", name: "Piran", place: "Piran", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 3, period: "late" },
   { id: "kamnik", name: "Kamnik", place: "Kamnik", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 4, period: "mid" },
@@ -58,11 +63,26 @@ const RACES: Race[] = [
   { id: "kranj-kriterij", name: "Kranj Criterium", place: "Kranj", country: "Slovenia", categories: ["U19M", "U19Ž"], type: "Criterium", month: 8, period: "late" },
   { id: "kranj-cestna", name: "Kranj Road Race", place: "Kranj", country: "Slovenia", categories: ["U19M", "U19Ž"], type: "Road race", month: 8, period: "late" },
   { id: "vn-dm", name: "VN DM", place: "Slovenia", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 10, period: "any" },
+  // Austria — 2027 windows derived from 2026 editions (2026 date in comment).
+  at("at-leonding", "65. Cycling Season Opening Race Leonding", "Leonding", null, 3, "late"), // 2026-03-22
+  at("at-st-marein", "St. Marein-Feistritz Road Race", "St. Marein-Feistritz", "Road race", 4, "mid"), // 2026-04-12
+  at("at-soell", "38. Ernst Feuchtner Memorial Race in Söll", "Söll", null, 4, "mid"), // 2026-04-19
+  at("at-walding", "Walding Circuit Race", "Walding", "Circuit race", 4, "late"), // 2026-04-25
+  at("at-wels", "64. International Raiffeisen Cherry Blossom Race Wels", "Wels", null, 4, "late"), // 2026-04-26
+  at("at-simonsfeld", "Simonsfeld AG Steinbergrennen Wind Power", "Location per official calendar", null, 5, "early"), // 2026-05-01
+  at("at-erlauftal", "53. International Erlauftal Cycling Days", "Purgstall/Erlauftal", null, 5, "early"), // 2026-05-03
+  at("at-oem", "Austrian National Road Championships (ÖM/ÖSTM Straße)", "Schwanenstadt", "Road race", 6, "late"), // 2026-06-28
+  at("at-villach", "Circuit Racing – Alpenarena Villach Racing Series", "Villach", "Circuit race", 7, "early"), // 2026-07-01
+  at("at-biedermeier", "Biedermeier Valley Tour", "Pernitz/Biedermeiertal", null, 7, "early"), // 2026-07-05
+  at("at-krappfeld", "Krappfeld Circuit Race", "Krappfeld", "Circuit race", 7, "mid"), // 2026-07-12
+  at("at-muehlviertel", "7. Mühlviertel Hill World Classic", "Königswiesen/Mühlviertel", null, 9, "mid"), // 2026-09-13
+  at("at-boa", "BOA Youth Road Race", "Steinhaus bei Wels", "Road race", 9, "mid"), // 2026-09-20
 ];
 
 function windowLabel(race: Race) {
   const p = PERIOD_LABEL[race.period];
-  return p ? `${p} ${MONTHS[race.month - 1]}` : MONTHS[race.month - 1];
+  const m = MONTHS[race.month - 1] + (race.country === "Austria" ? " 2027" : "");
+  return p ? `${p} ${m}` : m;
 }
 
 function FilterSelect({ id, label, value, onChange, allLabel, options }: {
