@@ -35,6 +35,7 @@ const RACE_TYPES = ["Enodnevna dirka", "Etapna dirka", "Posamični kronometer", 
 
 const PROVISIONAL_LABEL = "Okvirni datum — čaka se uradna potrditev";
 const MONTHS = ["januar", "februar", "marec", "april", "maj", "junij", "julij", "avgust", "september", "oktober", "november", "december"];
+const MONTHS_GEN = ["januarja", "februarja", "marca", "aprila", "maja", "junija", "julija", "avgusta", "septembra", "oktobra", "novembra", "decembra"];
 const PERIOD_LABEL = { early: "začetek", mid: "sredina", late: "konec", "mid-late": "sredina/konec", any: "" } as const;
 
 // Okvirni (neuradni) vnosi za Slovenijo. Brez točnih dni — samo okvirno obdobje meseca,
@@ -62,7 +63,7 @@ const RACES: Race[] = [
 
 function windowLabel(race: Race) {
   const p = PERIOD_LABEL[race.period];
-  return p ? `${p} ${MONTHS[race.month - 1]}a`.replace("ja" + "a", "ja") : MONTHS[race.month - 1];
+  return p ? `${p} ${MONTHS_GEN[race.month - 1]}` : MONTHS[race.month - 1];
 }
 
 function FilterSelect({ id, label, value, onChange, allLabel, options }: {
@@ -89,6 +90,12 @@ function Index() {
   const [date, setDate] = useState("");
   const [raceType, setRaceType] = useState("all");
   const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all";
+  const dateMonth = date ? Number(date.slice(5, 7)) : null;
+  const races = RACES.filter((r) =>
+    (country === "all" || r.country === country) &&
+    (category === "all" || r.categories.includes(category)) &&
+    (raceType === "all" || r.type === raceType) &&
+    (dateMonth === null || r.month === dateMonth));
   function resetFilters() {
     setCountry("all"); setCategory("all"); setDate(""); setRaceType("all");
   }
@@ -122,7 +129,7 @@ function Index() {
             <h2 className="font-serif text-3xl font-medium sm:text-4xl">Koledar dirk</h2>
             <span className="text-xs text-muted-foreground">U19M / U19Ž</span>
           </div>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">Podatke dodajamo in preverjamo državo po državo. Prve preverjene dirke bodo objavljene kmalu.</p>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">Podatke dodajamo in preverjamo državo po državo. Za Slovenijo so objavljeni okvirni vnosi brez točnih datumov — vsi okvirni datumi bodo popravljeni, ko bodo objavljeni uradni datumi.</p>
           <div className="mt-8 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-4">
             <FilterSelect id="drzava" label="Država" value={country} onChange={setCountry} allLabel="Vse države" options={COUNTRIES.map((value) => ({ value, label: value }))} />
             <FilterSelect id="kategorija" label="Kategorija" value={category} onChange={setCategory} allLabel="Obe kategoriji" options={CATEGORIES} />
@@ -133,14 +140,36 @@ function Index() {
             <FilterSelect id="tip-dirke" label="Tip dirke" value={raceType} onChange={setRaceType} allLabel="Vsi tipi" options={RACE_TYPES.map((value) => ({ value, label: value }))} />
           </div>
           <div className="mt-4 flex min-h-9 items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>0 objavljenih dirk</span>
+            <span>{races.length} okvirnih vnosov · 0 uradno potrjenih</span>
             <Button variant="ghost" size="sm" disabled={!filtered} onClick={resetFilters}><RotateCcw aria-hidden="true" />Ponastavi filtre</Button>
           </div>
-          <div role="status" aria-live="polite" className="mt-5 border-y border-border py-14 text-center sm:py-16">
-            <CalendarDays aria-hidden="true" className="mx-auto mb-5 size-8 text-muted-foreground" strokeWidth={1.25} />
-            <h3 className="font-serif text-2xl font-medium">Koledar je v pripravi.</h3>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">Trenutno še ni objavljenih preverjenih dirk{filtered ? " za izbrane filtre" : ""}. Ne prikazujemo vzorčnih ali nepotrjenih podatkov.</p>
-            <p className="mt-5 text-xs font-medium">Najprej preverimo. Nato objavimo.</p>
+          <div role="status" aria-live="polite" className="mt-5">
+            {races.length > 0 ? (
+              <>
+                <p className="border-y border-border bg-lime/30 px-4 py-3 text-xs font-medium">{PROVISIONAL_LABEL}. Datumi so okvirna obdobja po vzorcu koledarja 2026 in niso potrjeni. Merodajen bo uradni razpis.</p>
+                <ul className="divide-y divide-border border-b border-border">
+                  {races.map((r) => (
+                    <li key={r.id} className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr_auto] sm:items-baseline sm:gap-6">
+                      <div className="text-sm">
+                        <span className="font-medium">Okvirno: {windowLabel(r)}</span>
+                        {r.extraTentative && <span className="mt-1 block text-xs text-muted-foreground">Zelo negotovo — termin ni znan</span>}
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-xl font-medium">{r.name}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{r.place}, {r.country} · {r.categories.join(" / ")} · {r.type ?? "Tip še ni potrjen"}</p>
+                      </div>
+                      <span className="w-fit border border-border px-2 py-1 text-xs text-muted-foreground">{PROVISIONAL_LABEL}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="border-y border-border py-14 text-center sm:py-16">
+                <CalendarDays aria-hidden="true" className="mx-auto mb-5 size-8 text-muted-foreground" strokeWidth={1.25} />
+                <h3 className="font-serif text-2xl font-medium">Ni vnosov za izbrane filtre.</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">Ne prikazujemo vzorčnih ali nepotrjenih podatkov. Okvirni vnosi so zaenkrat na voljo samo za Slovenijo.</p>
+              </div>
+            )}
           </div>
         </section>
 
