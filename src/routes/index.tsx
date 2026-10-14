@@ -81,7 +81,7 @@ const RACES: Race[] = [
 
 function windowLabel(race: Race) {
   const p = PERIOD_LABEL[race.period];
-  const m = MONTHS[race.month - 1] + (race.country === "Austria" ? " 2027" : "");
+  const m = MONTHS[race.month - 1];
   return p ? `${p} ${m}` : m;
 }
 
@@ -110,11 +110,19 @@ function Index() {
   const [raceType, setRaceType] = useState("all");
   const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all";
   const dateMonth = date ? Number(date.slice(5, 7)) : null;
-  const races = RACES.filter((r) =>
+  const races = RACES
+  .filter((r) =>
     (country === "all" || r.country === country) &&
     (category === "all" || r.categories.includes(category)) &&
     (raceType === "all" || r.type === raceType) &&
-    (dateMonth === null || r.month === dateMonth));
+    (dateMonth === null || r.month === dateMonth)
+  )
+  .sort(
+    (a, b) =>
+      a.month - b.month ||
+      PERIOD_ORDER[a.period] - PERIOD_ORDER[b.period] ||
+      a.name.localeCompare(b.name)
+  );
   function resetFilters() {
     setCountry("all"); setCategory("all"); setDate(""); setRaceType("all");
   }
