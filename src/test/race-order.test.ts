@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { compareRaces, RACES } from "@/routes/index";
 
+type RaceItem = (typeof RACES)[number];
 const PERIOD_RANK = { early: 0, mid: 1, "mid-late": 2, late: 3, any: 4 } as const;
+
 
 const nameKey = (name: string) =>
   name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -13,19 +15,24 @@ describe("Race list ordering", () => {
   const sorted = ordered(RACES);
 
   it("sorts by month, then approximate window, then name", () => {
-    const rank = (race: (typeof RACES)[number]) =>
+    const rank = (race: RaceItem) =>
       [race.month, PERIOD_RANK[race.period], nameKey(race.name)] as const;
 
-    for (const [a, b] of sorted.slice(1).map((race, i) => [sorted[i], race])) {
-      const [monthA, windowA, nameA] = rank(a);
-      const [monthB, windowB, nameB] = rank(b);
-      const inOrder =
-        monthA < monthB ||
-        (monthA === monthB &&
-          (windowA < windowB || (windowA === windowB && nameA <= nameB)));
-      expect(inOrder).toBe(true);
+    let previous: RaceItem | null = null;
+    for (const current of sorted) {
+      if (previous) {
+        const [monthA, windowA, nameA] = rank(previous);
+        const [monthB, windowB, nameB] = rank(current);
+        const inOrder =
+          monthA < monthB ||
+          (monthA === monthB &&
+            (windowA < windowB || (windowA === windowB && nameA <= nameB)));
+        expect(inOrder).toBe(true);
+      }
+      previous = current;
     }
   });
+
 
 
   it("does not group the season by country", () => {
