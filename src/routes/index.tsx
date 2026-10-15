@@ -48,7 +48,7 @@ type Race = {
 const U19 = ["U19M", "U19Ž"];
 const at = (id: string, name: string, place: string, type: string | null, month: number, period: Race["period"]): Race =>
   ({ id, name, place, country: "Austria", categories: U19, type, month, period, label: AT_2027_LABEL });
-const RACES: Race[] = [
+export const RACES: Race[] = [
   { id: "piran", name: "Piran", place: "Piran", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 3, period: "late" },
   { id: "kamnik", name: "Kamnik", place: "Kamnik", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 4, period: "mid" },
   { id: "domzale", name: "Domžale", place: "Domžale", country: "Slovenia", categories: ["U19M", "U19Ž"], type: null, month: 4, period: "mid" },
@@ -85,6 +85,30 @@ function windowLabel(race: Race) {
   return p ? `${p} ${m}` : m;
 }
 
+// Display order only — never by country, so entries from different countries
+// interleave through the season. Chronological first: month, then the
+// approximate window inside it ("any" means no window was given, so it sorts
+// after the dated windows of that month). Same month and window sort by name,
+// then by id, so the result is identical in the browser and on the server.
+function compareText(a: string, b: string) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+// Locale-free name key: lowercased, diacritics stripped, whitespace collapsed.
+function nameKey(name: string) {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function compareRaces(a: Race, b: Race) {
+  return (
+    a.month - b.month ||
+    PERIOD_ORDER[a.period] - PERIOD_ORDER[b.period] ||
+    compareText(nameKey(a.name), nameKey(b.name)) ||
+    compareText(a.id, b.id)
+  );
+}
+
+
 function FilterSelect({ id, label, value, onChange, allLabel, options }: {
   id: string; label: string; value: string; onChange: (value: string) => void; allLabel: string;
   options: { value: string; label: string }[];
@@ -117,12 +141,8 @@ function Index() {
     (raceType === "all" || r.type === raceType) &&
     (dateMonth === null || r.month === dateMonth)
   )
-  .sort(
-    (a, b) =>
-      a.month - b.month ||
-      PERIOD_ORDER[a.period] - PERIOD_ORDER[b.period] ||
-      a.name.localeCompare(b.name)
-  );
+  .sort(compareRaces);
+
   function resetFilters() {
     setCountry("all"); setCategory("all"); setDate(""); setRaceType("all");
   }
