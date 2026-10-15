@@ -13,12 +13,20 @@ describe("Race list ordering", () => {
   const sorted = ordered(RACES);
 
   it("sorts by month, then approximate window, then name", () => {
+    const rank = (race: (typeof RACES)[number]) =>
+      [race.month, PERIOD_RANK[race.period], nameKey(race.name)] as const;
+
     for (const [a, b] of sorted.slice(1).map((race, i) => [sorted[i], race])) {
-      const key = (race: (typeof RACES)[number]) =>
-        `${race.month}.${PERIOD_RANK[race.period]}.${nameKey(race.name)}`;
-      expect(key(a) <= key(b)).toBe(true);
+      const [monthA, windowA, nameA] = rank(a);
+      const [monthB, windowB, nameB] = rank(b);
+      const inOrder =
+        monthA < monthB ||
+        (monthA === monthB &&
+          (windowA < windowB || (windowA === windowB && nameA <= nameB)));
+      expect(inOrder).toBe(true);
     }
   });
+
 
   it("does not group the season by country", () => {
     const countries = sorted.map((race) => race.country);
