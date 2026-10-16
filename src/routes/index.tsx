@@ -453,7 +453,6 @@ const paginatedRaces = filteredRaces.slice(
   (currentPage - 1) * RACES_PER_PAGE,
   currentPage * RACES_PER_PAGE
 );
-  .sort(compareRaces);
 
   function resetFilters() {
   setCountry("all");
