@@ -516,6 +516,31 @@ function Index() {
                     </li>
                   ))}
                 </ul>
+                <div className="flex items-center justify-center gap-4 py-6">
+  <button
+    type="button"
+    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+    disabled={currentPage === 1}
+    className="rounded border px-4 py-2 disabled:opacity-40"
+  >
+    Prejšnja
+  </button>
+
+  <span>
+    Stran {currentPage} od {Math.max(1, totalPages)}
+  </span>
+
+  <button
+    type="button"
+    onClick={() =>
+      setCurrentPage((page) => Math.min(totalPages, page + 1))
+    }
+    disabled={currentPage >= totalPages}
+    className="rounded border px-4 py-2 disabled:opacity-40"
+  >
+    Naslednja
+  </button>
+</div>
               </>
             ) : (
               <div className="border-y border-border py-14 text-center sm:py-16">
