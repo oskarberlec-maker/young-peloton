@@ -457,8 +457,12 @@ const paginatedRaces = filteredRaces.slice(
   .sort(compareRaces);
 
   function resetFilters() {
-    setCountry("all"); setCategory("all"); setDate(""); setRaceType("all");
-  }
+  setCountry("all");
+  setCategory("all");
+  setDate("");
+  setRaceType("all");
+  setCurrentPage(1);
+}
 
   return (
     <div id="vrh" className="min-h-screen bg-background text-foreground">
@@ -500,7 +504,7 @@ const paginatedRaces = filteredRaces.slice(
             <FilterSelect id="tip-dirke" label="Race type" value={raceType} onChange={setRaceType} allLabel="All types" options={RACE_TYPES.map((value) => ({ value, label: value }))} />
           </div>
           <div className="mt-4 flex min-h-9 items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>{races.length} provisional {races.length === 1 ? "entry" : "entries"} · 0 officially confirmed</span>
+            <span>{filteredRaces.length} provisional {races.length === 1 ? "entry" : "entries"} · 0 officially confirmed</span>
             <Button variant="ghost" size="sm" disabled={!filtered} onClick={resetFilters}><RotateCcw aria-hidden="true" />Reset filters</Button>
           </div>
           <div role="status" aria-live="polite" className="mt-5">
