@@ -435,19 +435,25 @@ function Index() {
   const dateMonth = date ? Number(date.slice(5, 7)) : null;
   const races = RACES
   const RACES_PER_PAGE = 50;
- const [currentPage, setCurrentPage] = useState(1);
+const [currentPage, setCurrentPage] = useState(1);
 
- const totalPages = Math.ceil(races.length / RACES_PER_PAGE);
+const races = [...RACES, ...IMPORTED_RACES] as Race[];
 
- const paginatedRaces = races.slice(
-  (currentPage - 1) * RACES_PER_PAGE,
-  currentPage * RACES_PER_PAGE
+const filteredRaces = races
   .filter((r) =>
     (country === "all" || r.country === country) &&
     (category === "all" || r.categories.includes(category)) &&
     (raceType === "all" || r.type === raceType) &&
     (dateMonth === null || r.month === dateMonth)
   )
+  .sort(compareRaces);
+
+const totalPages = Math.ceil(filteredRaces.length / RACES_PER_PAGE);
+
+const paginatedRaces = filteredRaces.slice(
+  (currentPage - 1) * RACES_PER_PAGE,
+  currentPage * RACES_PER_PAGE
+);
   .sort(compareRaces);
 
   function resetFilters() {
