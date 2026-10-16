@@ -433,7 +433,6 @@ function Index() {
   const [raceType, setRaceType] = useState("all");
   const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all";
   const dateMonth = date ? Number(date.slice(5, 7)) : null;
-  const races = RACES
   const RACES_PER_PAGE = 50;
 const [currentPage, setCurrentPage] = useState(1);
 
