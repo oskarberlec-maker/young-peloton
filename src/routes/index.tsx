@@ -434,6 +434,14 @@ function Index() {
   const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all";
   const dateMonth = date ? Number(date.slice(5, 7)) : null;
   const races = RACES
+  const RACES_PER_PAGE = 50;
+ const [currentPage, setCurrentPage] = useState(1);
+
+ const totalPages = Math.ceil(races.length / RACES_PER_PAGE);
+
+ const paginatedRaces = races.slice(
+  (currentPage - 1) * RACES_PER_PAGE,
+  currentPage * RACES_PER_PAGE
   .filter((r) =>
     (country === "all" || r.country === country) &&
     (category === "all" || r.categories.includes(category)) &&
@@ -494,7 +502,7 @@ function Index() {
               <>
                 <p className="border-y border-border bg-lime/30 px-4 py-3 text-xs font-medium">{PROVISIONAL_LABEL}. Dates are approximate windows based on the 2026 calendar pattern and are not confirmed. The official race notice will be authoritative.</p>
                 <ul className="divide-y divide-border border-b border-border">
-                  {races.map((r) => (
+                  {paginatedRaces.map((r) => (
                     <li key={r.id} className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr_auto] sm:items-baseline sm:gap-6">
                       <div className="text-sm">
                         <span className="font-medium">Approx.: {windowLabel(r)}</span>
