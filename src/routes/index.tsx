@@ -533,11 +533,11 @@ const paginatedRaces = filteredRaces.slice(
     disabled={currentPage === 1}
     className="rounded border px-4 py-2 disabled:opacity-40"
   >
-    Prejšnja
+    Previous
   </button>
 
   <span>
-    Stran {currentPage} od {Math.max(1, totalPages)}
+    Page {currentPage} of {Math.max(1, totalPages)}
   </span>
 
   <button
@@ -548,7 +548,7 @@ const paginatedRaces = filteredRaces.slice(
     disabled={currentPage >= totalPages}
     className="rounded border px-4 py-2 disabled:opacity-40"
   >
-    Naslednja
+    Next
   </button>
 </div>
               </>
