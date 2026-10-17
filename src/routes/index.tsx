@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IMPORTED_RACES } from "./-young-peloton-8000";
+import { RaceSourceLinks } from "@/components/RaceSourceLinks";
 
 const SITE = {
   brand: "Young Peloton",
@@ -519,6 +520,7 @@ const paginatedRaces = filteredRaces.slice(
                       <div>
                         <h3 className="font-serif text-xl font-medium">{r.name}</h3>
                         <p className="mt-1 text-xs text-muted-foreground">{r.place}, {r.country} · {r.categories.map((c) => CATEGORIES.find((x) => x.value === c)?.label ?? c).join(" / ")} · {r.type ?? "Race type not yet confirmed"}</p>
+                        <RaceSourceLinks raceId={r.id} />
                       </div>
                       <span className="w-fit border border-border px-2 py-1 text-xs text-muted-foreground">{PROVISIONAL_LABEL}</span>
                     </li>
