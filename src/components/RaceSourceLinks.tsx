@@ -1,12 +1,14 @@
 import { ArrowUpRight } from "lucide-react";
 import { RACE_SOURCES } from "@/routes/-young-peloton-race-sources";
+import { CONFIRMED_U19_RACES } from "@/routes/-confirmed-u19-races";
 
 type RaceSourceLinksProps = {
   raceId: string;
 };
 
 export function RaceSourceLinks({ raceId }: RaceSourceLinksProps) {
-  const source = RACE_SOURCES[raceId];
+  const confirmedRace = CONFIRMED_U19_RACES.find((race) => race.id === raceId);
+  const source = RACE_SOURCES[raceId] ?? (confirmedRace ? { officialUrl: confirmedRace.officialUrl, otherUrls: confirmedRace.otherUrls } : undefined);
 
   const links = [
     ...(source?.officialUrl

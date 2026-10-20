@@ -1,0 +1,1 @@
+export type ConfirmedU19Race = { id: string; name: string; place: string; country: string; categories: ("U19M" | "U19Ž")[]; type: string | null; month: number; period: "early" | "mid" | "late" | "mid-late" | "any"; sourceDate?: string; label?: string; officialUrl?: string; otherUrls?: string[]; };

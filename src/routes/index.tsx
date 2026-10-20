@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IMPORTED_RACES } from "./-young-peloton-8000";
+import { CONFIRMED_U19_RACES, CONFIRMED_U19_COUNTRIES } from "./-confirmed-u19-races";
 import { RaceSourceLinks } from "@/components/RaceSourceLinks";
 
 const SITE = {
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/")({
 });
 
 // Filter options are not race data or confirmation of country coverage.
-const COUNTRIES = ["Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Turkey", "Ukraine", "United Kingdom", "Vatican City"];
+const COUNTRIES = Array.from(new Set(["Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy", "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta", "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway", "Poland", "Portugal", "Romania", "Russia", "San Marino", "Serbia", "Slovakia", "Slovenia", "Spain", "Sweden", "Switzerland", "Turkey", "Ukraine", "United Kingdom", "Vatican City", ...CONFIRMED_U19_COUNTRIES])).sort();
 const CATEGORIES = [{ value: "U19M", label: "U19 Men" }, { value: "U19Ž", label: "U19 Women" }];
 const RACE_TYPES = ["Road race", "Stage race", "Individual time trial", "Team time trial", "Criterium", "Circuit race"];
 
@@ -45,7 +46,7 @@ const PERIOD_ORDER = { early: 0, mid: 1, "mid-late": 2, late: 3, any: 4 } as con
 // Corrected once official dates are published.
 type Race = {
   id: string; name: string; place: string; country: string; categories: string[];
-  type: string | null; month: number; period: keyof typeof PERIOD_LABEL; extraTentative?: boolean; label?: string;
+  type: string | null; month: number; period: keyof typeof PERIOD_LABEL; extraTentative?: boolean; label?: string; sourceDate?: string;
 };
 const U19 = ["U19M", "U19Ž"];
 const at = (id: string, name: string, place: string, type: string | null, month: number, period: Race["period"]): Race =>
@@ -437,7 +438,7 @@ function Index() {
   const RACES_PER_PAGE = 25;
 const [currentPage, setCurrentPage] = useState(1);
 
-const races: Race[] = [...RACES, ...IMPORTED_RACES];
+const races: Race[] = [...RACES, ...IMPORTED_RACES, ...CONFIRMED_U19_RACES];
 
 const filteredRaces = races
   .filter((r) =>
@@ -515,6 +516,7 @@ const paginatedRaces = filteredRaces.slice(
                     <li key={r.id} className="grid gap-2 py-5 sm:grid-cols-[11rem_1fr_auto] sm:items-baseline sm:gap-6">
                       <div className="text-sm">
                         <span className="font-medium">Approx.: {windowLabel(r)}</span>
+                        {r.sourceDate && <span className="mt-1 block text-xs text-muted-foreground">Source date: {r.sourceDate}</span>}
                         {r.extraTentative && <span className="mt-1 block text-xs text-muted-foreground">Highly tentative — date unknown</span>}
                       </div>
                       <div>
@@ -522,7 +524,7 @@ const paginatedRaces = filteredRaces.slice(
                         <p className="mt-1 text-xs text-muted-foreground">{r.place}, {r.country} · {r.categories.map((c) => CATEGORIES.find((x) => x.value === c)?.label ?? c).join(" / ")} · {r.type ?? "Race type not yet confirmed"}</p>
                         <RaceSourceLinks raceId={r.id} />
                       </div>
-                      <span className="w-fit border border-border px-2 py-1 text-xs text-muted-foreground">{PROVISIONAL_LABEL}</span>
+                      <span className="w-fit border border-border px-2 py-1 text-xs text-muted-foreground">{r.label ?? PROVISIONAL_LABEL}</span>
                     </li>
                   ))}
                 </ul>
