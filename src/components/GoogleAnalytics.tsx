@@ -7,7 +7,7 @@ const CONSENT_KEY = "young-peloton-analytics-consent";
 
 declare global {
   interface Window {
-    dataLayer?: IArguments[] | unknown[];
+    dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
   }
 }
@@ -33,8 +33,9 @@ export function GoogleAnalytics() {
     if (consent !== true) return;
 
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function (...args: unknown[]) {
-      window.dataLayer!.push(args);
+    window.gtag = function () {
+      // eslint-disable-next-line prefer-rest-params -- gtag.js requires the Arguments object
+      window.dataLayer!.push(arguments);
     };
 
     window.gtag("js", new Date());
@@ -43,7 +44,7 @@ export function GoogleAnalytics() {
     const script = document.createElement("script");
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
-    script.dataset.youngPelotonAnalytics = "true";
+    script.dataset["youngPelotonAnalytics"] = "true";
     document.head.appendChild(script);
 
     return () => {
