@@ -1,7 +1,12 @@
 // Generated from the Excel sheet "Potrjeni programi".
 // Deduplicated by normalized name, country, place, type, month, and period.
 // Matching male/female category rows are merged.
-export const IMPORTED_RACES = [
+export type ImportedRace = {
+  id: string; name: string; place: string; country: string; categories: string[];
+  type: string | null; month: number; period: "early" | "mid" | "mid-late" | "late" | "any";
+};
+
+export const IMPORTED_RACES: ImportedRace[] = [
   { id: "xl-1", name: "Trofeu dita e Veres", place: "Elbasan", country: "Albania", categories: ["U19M", "U19Ž"], type: "Stage race", month: 3, period: "mid" },
   { id: "xl-2", name: "Tofeu 26 Marsi", place: "Kavaje", country: "Albania", categories: ["U19M", "U19Ž"], type: "Road race", month: 3, period: "late" },
   { id: "xl-3", name: "Trofeu Tirana", place: "Tirane", country: "Albania", categories: ["U19M", "U19Ž"], type: "Road race", month: 4, period: "early" },
@@ -8073,4 +8078,4 @@ export const IMPORTED_RACES = [
   { id: "xl-8276", name: "Swiss Road Series - Radsporttage Gansingen", place: "Gansingen AG", country: "Switzerland", categories: ["U19M", "U19Ž"], type: "Road race", month: 9, period: "mid" },
   { id: "xl-8277", name: "Radklassiker Chur-Arosa - Schweizermeisterschaft Berg 2026", place: "Chur GR", country: "Switzerland", categories: ["U19M", "U19Ž"], type: "Road race", month: 9, period: "mid" },
   { id: "xl-8278", name: "Stabio Crit", place: "Stabio TI", country: "Switzerland", categories: ["U19M", "U19Ž"], type: "Road race", month: 9, period: "mid" },
-] as const;
+];
