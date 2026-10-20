@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 
@@ -7,7 +6,7 @@ const CONSENT_KEY = "young-peloton-analytics-consent";
 
 declare global {
   interface Window {
-    dataLayer?: IArguments[] | unknown[];
+    dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
   }
 }
@@ -33,8 +32,9 @@ export function GoogleAnalytics() {
     if (consent !== true) return;
 
     window.dataLayer = window.dataLayer || [];
-    window.gtag = function (...args: unknown[]) {
-      window.dataLayer!.push(args);
+    window.gtag = function () {
+      // eslint-disable-next-line prefer-rest-params -- gtag.js requires the Arguments object
+      window.dataLayer!.push(arguments);
     };
 
     window.gtag("js", new Date());
@@ -43,7 +43,7 @@ export function GoogleAnalytics() {
     const script = document.createElement("script");
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
-    script.dataset.youngPelotonAnalytics = "true";
+    script.dataset["youngPelotonAnalytics"] = "true";
     document.head.appendChild(script);
 
     return () => {
@@ -64,10 +64,7 @@ export function GoogleAnalytics() {
 
   function chooseConsent(accepted: boolean) {
     try {
-      localStorage.setItem(
-        CONSENT_KEY,
-        accepted ? "accepted" : "rejected",
-      );
+      localStorage.setItem(CONSENT_KEY, accepted ? "accepted" : "rejected");
       setConsent(accepted);
     } catch {
       setConsent(false);
@@ -81,13 +78,10 @@ export function GoogleAnalytics() {
       aria-label="Cookie preferences"
       className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-xl rounded-xl border bg-background p-5 text-foreground shadow-xl"
     >
-      <h2 className="text-base font-semibold">
-        Your privacy matters
-      </h2>
+      <h2 className="text-base font-semibold">Your privacy matters</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Young Peloton would like to use Google Analytics to understand
-        how visitors use the website. Analytics will only run if you
-        accept. You can reject it and still use the website normally.
+        Young Peloton would like to use Google Analytics to understand how visitors use the website.
+        Analytics will only run if you accept. You can reject it and still use the website normally.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
