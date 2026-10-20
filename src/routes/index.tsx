@@ -433,7 +433,8 @@ function Index() {
   const [category, setCategory] = useState("all");
   const [date, setDate] = useState("");
   const [raceType, setRaceType] = useState("all");
-  const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all";
+  const [searchQuery, setSearchQuery] = useState("");
+  const filtered = country !== "all" || category !== "all" || date !== "" || raceType !== "all" || searchQuery.trim() !== "";
   const dateMonth = date ? Number(date.slice(5, 7)) : null;
   const RACES_PER_PAGE = 25;
 const [currentPage, setCurrentPage] = useState(1);
@@ -445,7 +446,8 @@ const filteredRaces = races
     (country === "all" || r.country === country) &&
     (category === "all" || r.categories.includes(category)) &&
     (raceType === "all" || r.type === raceType) &&
-    (dateMonth === null || r.month === dateMonth)
+    (dateMonth === null || r.month === dateMonth) &&
+    (!searchQuery.trim() || `${r.name} ${r.place}`.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase()))
   )
   .sort(compareRaces);
 
@@ -461,6 +463,7 @@ const paginatedRaces = filteredRaces.slice(
   setCategory("all");
   setDate("");
   setRaceType("all");
+  setSearchQuery("");
   setCurrentPage(1);
 }
 
@@ -494,7 +497,7 @@ const paginatedRaces = filteredRaces.slice(
             <span className="text-xs text-muted-foreground">U19 Men / U19 Women</span>
           </div>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">We add and verify races country by country. Provisional entries without exact dates are listed for Slovenia — all approximate dates will be corrected once official dates are published.</p>
-          <div className="mt-8 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-4">
+          <div className="mt-8 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-5">
             <FilterSelect id="drzava" label="Country" value={country} onChange={setCountry} allLabel="All countries" options={COUNTRIES.map((value) => ({ value, label: value }))} />
             <FilterSelect id="kategorija" label="Category" value={category} onChange={setCategory} allLabel="Both categories" options={CATEGORIES} />
             <div className="space-y-2">
@@ -502,6 +505,10 @@ const paginatedRaces = filteredRaces.slice(
               <Input id="datum" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-11 min-w-0 shadow-none" />
             </div>
             <FilterSelect id="tip-dirke" label="Race type" value={raceType} onChange={setRaceType} allLabel="All types" options={RACE_TYPES.map((value) => ({ value, label: value }))} />
+            <div className="space-y-2">
+              <label htmlFor="iskanje-dirke" className="text-xs font-medium">Race name or place</label>
+              <Input id="iskanje-dirke" type="search" value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setCurrentPage(1); }} placeholder="Search races or places…" className="h-11 min-w-0 shadow-none" />
+            </div>
           </div>
           <div className="mt-4 flex min-h-9 items-center justify-between gap-3 text-xs text-muted-foreground">
             <span>{filteredRaces.length} provisional {races.length === 1 ? "entry" : "entries"} · 0 officially confirmed</span>
