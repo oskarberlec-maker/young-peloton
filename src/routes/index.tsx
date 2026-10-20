@@ -437,7 +437,7 @@ function Index() {
   const RACES_PER_PAGE = 25;
 const [currentPage, setCurrentPage] = useState(1);
 
-const races = [...RACES, ...IMPORTED_RACES] as Race[];
+const races: Race[] = [...RACES, ...IMPORTED_RACES];
 
 const filteredRaces = races
   .filter((r) =>
