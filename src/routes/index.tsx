@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
+import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
 import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +25,9 @@ const bucketText: Record<string,string>={confirmed:'U19 confirmed',conditional:'
 
 function downloadCsv(races:U19Race[]) {
   const cols:[string,(r:U19Race)=>string][]=[
-    ['Race ID',r=>r.id],['Race',r=>r.name],['Country',r=>r.country],['Location',r=>r.place],
-    ['Date',r=>r.date],['End date',r=>r.enddate],['Category',r=>r.sex],['Type',r=>r.type],
-    ['U19 status',r=>r.confirmation],['Race state',r=>r.state],['Notice',r=>r.status],
+    ['Race ID',r=>r.id],['Race',r=>r.name],['Country',r=>countryLabel(r.countryCode,r.country)],['Location',r=>r.place],
+    ['Date',r=>r.date],['End date',r=>r.enddate],['Category',r=>englishCategory(r.sex)],['Type',r=>englishRaceType(r.type)],
+    ['U19 status',r=>englishConfirmation(r.confirmation)],['Race state',r=>r.state],['Notice',r=>englishRaceNote(r.status)],
     ['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],['Results',r=>r.resultUrl],
   ];
   const safeCell=(value:string)=>{
@@ -75,7 +76,7 @@ function Index(){
       if(state!=='all'&&r.state!==state)return false;
       if(from&&(!r.date||r.date<from))return false;
       if(to&&(!r.date||r.date>to))return false;
-      if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)}`.toLocaleLowerCase().includes(q))return false;
+      if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)} ${englishCategory(r.sex)} ${englishRaceType(r.type)} ${englishConfirmation(r.confirmation)} ${englishRaceNote(r.status)}`.toLocaleLowerCase().includes(q))return false;
       return true;
     });
   },[races,showArchived,country,month,category,verification,state,from,to,query]);
@@ -143,8 +144,9 @@ function Index(){
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
                 <h3 className="text-base font-bold leading-snug">{r.name}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{r.sex||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{r.type}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
-                {r.status&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground">{r.status}</p>}
+                <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
+                {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}
+                {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
                 {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
               </div>
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}</div>
@@ -158,6 +160,6 @@ function Index(){
         </aside>
       </>}
     </div>
-    <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">Young Peloton · European U19 road cycling archive · 2026 · Dates and evidence linked to original sources</footer>
+    <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">Young Peloton · European U19 road cycling archive · 2026 · Dates and evidence linked to original sources · Official event names remain in their published language</footer>
   </main>;
 }

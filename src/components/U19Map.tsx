@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { U19Race } from '@/lib/u19-data';
 import { niceDate, safeUrl } from '@/lib/u19-data';
+import { englishCategory, englishConfirmation, englishRaceType } from '@/lib/u19-english';
 
 // Use the archived, locally served Leaflet dependencies; no extra npm package is required.
 const LEAFLET_ROOT = '/vendor/leaflet/';
@@ -97,7 +98,8 @@ export function U19Map({races}:{races:U19Race[]}) {
       {selected.precision==='country'&&<p className="text-amber-700 text-sm">Only a country-level location is known for these records.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {listed.map(r=><div key={r.id} className="rounded-md border border-border px-3 py-2 text-sm">
-          <div className="font-semibold">{r.name}</div><div className="text-muted-foreground">{niceDate(r.date)} · {r.sex}</div>
+          <div className="font-semibold">{r.name}</div><div className="text-muted-foreground">{niceDate(r.date)} · {englishCategory(r.sex)}{r.type?` · ${englishRaceType(r.type)}`:''}</div>
+          <div className="text-xs text-muted-foreground">{englishConfirmation(r.confirmation)}</div>
           {safeUrl(r.sourceUrl)&&<a className="text-sky-700 underline" href={r.sourceUrl} target="_blank" rel="noopener noreferrer">Source ↗</a>}
         </div>)}
       </div>
