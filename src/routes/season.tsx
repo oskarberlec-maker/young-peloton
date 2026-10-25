@@ -4,6 +4,8 @@ import { loadU19Races, niceDate,type U19Race } from '@/lib/u19-data';
 import { downloadIcs } from '@/lib/race-calendar';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { cloudAccountsAvailable, googleProviderEnabled } from '@/lib/supabase-client';
+import { GoogleIdentityButton } from '@/components/GoogleIdentityButton';
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export const Route=createFileRoute('/season')({
   head:()=>({meta:[{title:'Build Your Racing Season — Young Peloton'},
@@ -40,11 +42,13 @@ function SeasonPage() {
         {!cloudAccountsAvailable&&<p className="text-sm text-amber-800">Cloud accounts are not enabled yet. Saved races are kept only in this browser until the site owner connects the account database.</p>}
         {cloudAccountsAvailable&&!season.user&&<><h2 className="text-xl font-semibold">Sign in to save your season</h2>
           <p className="text-sm text-muted-foreground">Use your Google account to save and sync races securely across devices.</p>
-          <button type="button" disabled={season.busy||googleReady!==true} onClick={()=>void season.signInWithGoogle().catch(()=>{})}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
-            <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.7 1.2 9.2 3.6l6.8-6.8C35.9 2.5 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.9 24.6c0-1.6-.2-3.1-.4-4.6H24v9h12.8c-.6 2.9-2.3 5.4-4.8 7.1l7.7 6C44.2 37.9 46.9 31.9 46.9 24.6z"/><path fill="#FBBC05" d="M10.5 28.6a14.5 14.5 0 0 1 0-9.2l-7.9-6.1a24 24 0 0 0 0 21.4z"/><path fill="#34A853" d="M24 48c6.4 0 11.9-2.1 15.7-5.9l-7.7-6c-2.1 1.4-4.8 2.3-8 2.3-6.2 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
-            Continue with Google
-          </button>
+          {googleClientId && googleReady===true
+            ? <GoogleIdentityButton clientId={googleClientId} onCredential={season.signInWithGoogleIdToken} />
+            : <button type="button" disabled={season.busy||googleReady!==true} onClick={()=>void season.signInWithGoogle().catch(()=>{})}
+                className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                Continue with Google
+              </button>}
+          {!googleClientId&&googleReady===true&&<p className="text-center text-xs text-muted-foreground">Google's inline sign-in is being configured; the existing secure Google login remains available.</p>}
           {googleReady===false&&<p className="text-sm text-amber-800" role="status">Google sign-in is being set up. You can still sign in by email below.</p>}
           {googleReady===null&&<p className="text-sm text-muted-foreground" role="status">Checking Google sign-in availability…</p>}
           <div className="flex items-center gap-3 text-xs text-muted-foreground"><div className="h-px flex-1 bg-border"/><span>Or continue with email</span><div className="h-px flex-1 bg-border"/></div>
