@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Link } from '@tanstack/react-router';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { downloadIcs } from '@/lib/race-calendar';
-import { Link } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/')({
   head:()=>({ meta:[
