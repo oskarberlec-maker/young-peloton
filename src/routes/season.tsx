@@ -5,6 +5,7 @@ import { downloadIcs } from '@/lib/race-calendar';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { cloudAccountsAvailable, googleProviderEnabled } from '@/lib/supabase-client';
 import { GoogleIdentityButton } from '@/components/GoogleIdentityButton';
+import { TeamSeason } from '@/components/TeamSeason';
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export const Route=createFileRoute('/season')({
@@ -68,6 +69,7 @@ function SeasonPage() {
         {season.error&&<p role="alert" className="text-sm text-red-700">{season.error}</p>}
         {!season.user&&<p className="text-xs text-muted-foreground">Without an account, your saved list stays in this browser. Your selections are private, and no public profile is created.</p>}
       </section>
+      {season.user&&<TeamSeason user={season.user} races={races} onAddRace={async(id)=>{if(!season.saved.includes(id))await season.toggle(id);}}/>}
       <section className="space-y-4" aria-label="Saved races"><div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-bold">My races ({season.saved.length})</h2>
         <button className="rounded-md border px-3 py-2 text-sm disabled:opacity-50" disabled={!selected.length} onClick={()=>downloadIcs(selected)}>Export calendar (.ics)</button>
