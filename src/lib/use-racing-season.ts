@@ -63,10 +63,19 @@ export function useRacingSeason() {
     if(!ids.length)return;
     setBusy(true);setError('');
     const rows=ids.map(id=>({user_id:user.id,race_id:id,season_year:2026}));
-    const {error}=await db.from('racing_season_entries').upsert(rows,{onConflict:'user_id,race_id'});
+    const {error}=await db.from('racing_season_entries').upsert(rows,{onConflict:'user_id,race_id',ignoreDuplicates:true});
     if(error)setError('Could not import your saved races: '+error.message);
     else {await refresh(user);writeLocalSavedIds([]);}
     setBusy(false);
   };
-  return {user,ready,saved,busy,error,signIn,signOut,toggle,importLocal,localCount:readLocalSavedIds().length};
+  const clearAll=async()=>{
+    if(busy)return;
+    if(!user||!db){writeLocalSavedIds([]);setSaved([]);return;}
+    setBusy(true);setError('');
+    const {error}=await db.from('racing_season_entries').delete().eq('user_id',user.id);
+    if(error)setError('Could not clear your racing season: '+error.message);
+    else setSaved([]);
+    setBusy(false);
+  };
+  return {user,ready,saved,busy,error,signIn,signOut,toggle,importLocal,clearAll,localCount:readLocalSavedIds().length};
 }
