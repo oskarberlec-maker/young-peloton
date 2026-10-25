@@ -6,8 +6,9 @@ import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote 
 import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { downloadIcs } from '@/lib/race-calendar';
 import { Link } from '@tanstack/react-router';
+import { useRacingSeason } from '@/lib/use-racing-season';
+import { downloadIcs } from '@/lib/race-calendar';
 
 export const Route = createFileRoute('/')({
   head:()=>({ meta:[
@@ -64,11 +65,10 @@ function Index(){
   const [year,setYear]=useState(2026);
   const [advanced,setAdvanced]=useState(false);
   const [futureOnly,setFutureOnly]=useState(false);
-  const [saved,setSaved]=useState<string[]>([]);
+  const { saved, toggle: toggleSaved, user } = useRacingSeason();
   const [savedOnly,setSavedOnly]=useState(false);
   const [linkedRace,setLinkedRace]=useState('');
-  useEffect(()=>{try{setSaved(JSON.parse(localStorage.getItem('young-peloton-saved-races')||'[]'));}catch{setSaved([]);}},[]);
-  const toggleSaved=(id:string)=>setSaved(prev=>{const next=prev.includes(id)?prev.filter(x=>x!==id):[...prev,id];try{localStorage.setItem('young-peloton-saved-races',JSON.stringify(next));}catch{}return next;});
+
   const jump=(target:'calendar'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
   useEffect(()=>{const params=new URLSearchParams(window.location.search);if(params.get('year')==='2027')setYear(2027);if(params.has('race'))setLinkedRace(params.get('race')||'');if(params.has('country'))setCountry(params.get('country')||'all');if(params.has('month'))setMonth(params.get('month')||'0');if(params.has('category'))setCategory(params.get('category')||'all');if(params.has('from'))setFrom(params.get('from')||'');if(params.has('to'))setTo(params.get('to')||'');if(params.has('q'))setQuery(params.get('q')||'');if(params.has('type'))setRaceType(params.get('type')||'all');},[]);
@@ -122,7 +122,7 @@ function Index(){
           <button type="button" onClick={()=>setTab('calendar')} className={`rounded-lg px-4 py-2 ${tab==='calendar'?'bg-white text-slate-900':'text-slate-200 hover:bg-slate-800'}`}>Calendar</button>
           <button type="button" onClick={()=>setTab('map')} className={`rounded-lg px-4 py-2 ${tab==='map'?'bg-white text-slate-900':'text-slate-200 hover:bg-slate-800'}`}>Map of Europe</button>
         </nav>
-        <span className="rounded-full border border-slate-600 px-3 py-1 text-xs tracking-wide">2026 · U19 MEN & WOMEN</span>
+        <Link to="/season" className="rounded-full border border-cyan-500 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">Build Your Racing Season {user?'· My account':''}</Link>
       </div>
     </header>
     <section className="border-b border-border bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white">
@@ -132,6 +132,7 @@ function Index(){
         <p className="mt-4 max-w-3xl text-base text-slate-300">Search European junior cycling events by country, date and race type. Compare verified race information and plan your season in one place.</p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Button onClick={()=>jump('calendar')} className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"><CalendarDays size={17}/> Browse races</Button>
+          <Link to="/season" className="inline-flex items-center rounded-md border border-cyan-400 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">My Racing Season</Link>
           <Button onClick={()=>jump('map')} variant="outline" className="border-slate-400 bg-transparent text-white hover:bg-slate-800 hover:text-white"><MapPinned size={17}/> Explore the map</Button>
         </div>
       </div>
@@ -186,7 +187,7 @@ function Index(){
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
                 <h3 className="text-base font-bold leading-snug"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
-                <div className="mt-2 flex gap-2"><button onClick={()=>toggleSaved(r.id)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
+                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
                 {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}
@@ -207,7 +208,7 @@ function Index(){
     </div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
       <p>Young Peloton · European U19 road cycling archive · 2026 · Official event names remain in their published language</p>
-      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
+      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">My Racing Season</Link><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
     </footer>
   </main>;
 }
