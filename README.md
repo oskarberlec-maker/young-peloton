@@ -1,26 +1,32 @@
 # Young Peloton
 
-Ustvari in pripravi za objavo delujočo, odzivno osebno spletno stran v slovenščini, ki vizualno sledi minimalističnemu slogu andraz.org, vendar ne kopiraj njihovega besedila ali identitete. Uporabi topel skoraj bel background (#f7f7f4), temno tipografijo, subtilne ločilne črte, veliko praznega prostora, čist editorial izgled in poudarek limetno zelene barve. Stran naj ima zgoraj levo urejevalno ime znamke »MOJE IME®«, navigacijo Projekti / O meni / Kontakt, velik uvodni naslov »Prostor za moje ideje, projekte in stvari, ki jih ustvarjam.«, kratek opis, tri projekte (KlientFlow, Projekt št. 2, Projekt št. 3), razdelek O meni in kontakt v nogi. Uporabi lepo tipografijo, odzivno postavitev za telefon in računalnik, dostopne kontraste in subtilne hover učinke. Vse besedilo naj bo enostavno za kasnejše spreminjanje v kodi. Projekt KlientFlow naj ima kratek opis orodja za prodajna sporočila. Kontakt uporabi nevtralen placeholder pozdrav@example.com, jasno označen kot nadomestno besedilo. Ne dodajaj nepotrebnih funkcij, prijave ali baze podatkov. Poskrbi, da projekt zgradiš brez napak in bo pripravljen za javno objavo.
+Young Peloton helps European junior road cyclists, coaches and clubs discover U19 cycling events.
 
-This project was built with [Lovable](https://lovable.dev).
+**Website:** https://young-peloton.vercel.app/
 
-**Live app**: https://young-peloton.lovable.app
+## Features
+- Browse and search sourced race records by country, category, verification status, race type and date range.
+- Explore approximate race locations on the Europe map.
+- Save a shortlist in the browser, share direct race links and export filtered events to CSV.
+- Follow links to original race calendars, eligibility evidence and results when available.
 
-## Build with Lovable
+## Data limitations
+The 2026 archive was last updated October 22, 2026 and is not marked complete. Being listed does not guarantee U19 eligibility, exact venue, that a race took place, or that a cancellation has been updated. Map positions are approximate settlement, area or country centres, not race start coordinates. Confirm all dates, registrations and eligibility with the organizer.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/1b014b84-5de4-46f5-ab8c-0aa57ac5d449).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+Saved races are stored in the current browser only, not synced to an account.
 
 ## Development
+Requires Node.js and npm.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
+npm install
 npm run dev
+npm run build
+npm run lint
+npm test
 ```
+
+React, TypeScript, TanStack Router, Tailwind CSS and Leaflet. Data is stored under `public/data/2026/`, with a manifest and 54 chunks.
+
+## Corrections
+[Report incorrect race information](https://github.com/oskarberlec-maker/young-peloton/issues/new), ideally with the event name and an official source URL.

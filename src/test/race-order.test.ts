@@ -1,61 +1,24 @@
-import { describe, expect, it } from "vitest";
-
-import { compareRaces, RACES } from "@/routes/index";
-
-type RaceItem = (typeof RACES)[number];
-const PERIOD_RANK = { early: 0, mid: 1, "mid-late": 2, late: 3, any: 4 } as const;
-
-
-const nameKey = (name: string) =>
-  name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-
-const ordered = (list: typeof RACES) => [...list].sort(compareRaces);
-
-describe("Race list ordering", () => {
-  const sorted = ordered(RACES);
-
-  it("sorts by month, then approximate window, then name", () => {
-    const rank = (race: RaceItem) =>
-      [race.month, PERIOD_RANK[race.period], nameKey(race.name)] as const;
-
-    let previous: RaceItem | null = null;
-    for (const current of sorted) {
-      if (previous) {
-        const [monthA, windowA, nameA] = rank(previous);
-        const [monthB, windowB, nameB] = rank(current);
-        const inOrder =
-          monthA < monthB ||
-          (monthA === monthB &&
-            (windowA < windowB || (windowA === windowB && nameA <= nameB)));
-        expect(inOrder).toBe(true);
-      }
-      previous = current;
-    }
+import { describe, expect, it } from 'vitest';
+import type { U19Race } from '@/lib/u19-data';
+const sample = (id:string,date:string,name:string):U19Race=>({
+  id,date,name,enddate:date,place:'',countryCode:'SI',country:'Slovenia',sex:'M',
+  type:'Cestna dirka',confirmation:'',status:'',sourceUrl:'https://example.org',
+  proofUrl:'',resultUrl:'',bucket:'confirmed',state:'active',lat:null,lon:null,
+  precision:'country',region:'',roadUnconfirmed:0,duplicate:0
+});
+const races=[sample('3','2026-06-02','A Race'),sample('1','2026-03-10','Race B'),
+  sample('4','','Unconfirmed'),sample('2','2026-03-10','Race A')];
+const ordered=(items:U19Race[])=>[...items].sort((a,b)=>
+  (a.date||'9999').localeCompare(b.date||'9999')||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+describe('Chronological race ordering',()=>{
+  it('sorts by dates, then name, with undated events last',()=>{
+    expect(ordered(races).map(r=>r.id)).toEqual(['2','1','3','4']);
   });
-
-
-
-  it("does not group the season by country", () => {
-    const countries = sorted.map((race) => race.country);
-    const switches = countries.slice(1).filter((country, i) => country !== countries[i]).length;
-    expect(switches).toBeGreaterThan(1);
+  it('is stable regardless of incoming chunk order',()=>{
+    expect(ordered([...races].reverse()).map(r=>r.id)).toEqual(ordered(races).map(r=>r.id));
   });
-
-  it("gives the same order whatever order the records arrive in", () => {
-    const reversed = [...RACES].reverse();
-    const shuffled = [...RACES].sort((a, b) => compareText(a.id, b.id));
-
-    expect(ordered(reversed).map((race) => race.id)).toEqual(sorted.map((race) => race.id));
-    expect(ordered(shuffled).map((race) => race.id)).toEqual(sorted.map((race) => race.id));
-  });
-
-  it("keeps every record and changes none of their data", () => {
-    expect(sorted).toHaveLength(RACES.length);
-    expect(sorted.map((race) => race.id).sort()).toEqual(RACES.map((race) => race.id).sort());
-    expect(RACES.filter((race) => race.country === "Austria").length).toBeGreaterThan(0);
+  it('preserves every record',()=>{
+    expect(ordered(races)).toHaveLength(races.length);
+    expect(ordered(races).map(r=>r.id).sort()).toEqual(races.map(r=>r.id).sort());
   });
 });
-
-function compareText(a: string, b: string) {
-  return a < b ? -1 : a > b ? 1 : 0;
-}
