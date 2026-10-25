@@ -62,11 +62,12 @@ function Index(){
   const [futureOnly,setFutureOnly]=useState(false);
   const [saved,setSaved]=useState<string[]>([]);
   const [savedOnly,setSavedOnly]=useState(false);
+  const [linkedRace,setLinkedRace]=useState('');
   useEffect(()=>{try{setSaved(JSON.parse(localStorage.getItem('young-peloton-saved-races')||'[]'));}catch{setSaved([]);}},[]);
   const toggleSaved=(id:string)=>setSaved(prev=>{const next=prev.includes(id)?prev.filter(x=>x!==id):[...prev,id];try{localStorage.setItem('young-peloton-saved-races',JSON.stringify(next));}catch{}return next;});
   const jump=(target:'calendar'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
-  const shareRace=(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);navigator.clipboard?.writeText(url.toString()).catch(()=>{});};
-  useEffect(()=>{const params=new URLSearchParams(window.location.search);if(params.has('country'))setCountry(params.get('country')||'all');if(params.has('month'))setMonth(params.get('month')||'0');if(params.has('category'))setCategory(params.get('category')||'all');if(params.has('from'))setFrom(params.get('from')||'');if(params.has('to'))setTo(params.get('to')||'');if(params.has('q'))setQuery(params.get('q')||'');if(params.has('type'))setRaceType(params.get('type')||'all');},[]);
+  const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
+  useEffect(()=>{const params=new URLSearchParams(window.location.search);if(params.has('race'))setLinkedRace(params.get('race')||'');if(params.has('country'))setCountry(params.get('country')||'all');if(params.has('month'))setMonth(params.get('month')||'0');if(params.has('category'))setCategory(params.get('category')||'all');if(params.has('from'))setFrom(params.get('from')||'');if(params.has('to'))setTo(params.get('to')||'');if(params.has('q'))setQuery(params.get('q')||'');if(params.has('type'))setRaceType(params.get('type')||'all');},[]);
   useEffect(()=>{const url=new URL(window.location.href);for(const k of ['country','month','category','from','to','q','type'])url.searchParams.delete(k);
     for(const [k,v] of Object.entries({country,month,category,from,to,q:query,type:raceType}))if(v&&v!=='all'&&v!=='0')url.searchParams.set(k,v);
     window.history.replaceState(null,'',url.toString());
@@ -81,9 +82,11 @@ function Index(){
     return ()=>controller.abort();
   },[]);
   const countries=useMemo(()=>[...new Map(races.map(r=>[r.countryCode,countryLabel(r.countryCode,r.country)])).entries()].sort((a,b)=>a[1].localeCompare(b[1])),[races]);
+  const selectedLinkedRace=races.find(r=>r.id===linkedRace);
   const filtered=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase();
     return races.filter(r=>{
+      if(linkedRace)return r.id===linkedRace;
       if(!showArchived&&!visibleRace(r))return false;
       if(savedOnly&&!saved.includes(r.id))return false;
       if(futureOnly && (r.enddate||r.date)<todayISO())return false;
@@ -98,12 +101,12 @@ function Index(){
       if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)} ${englishCategory(r.sex)} ${englishRaceType(r.type)} ${englishConfirmation(r.confirmation)} ${englishRaceNote(r.status)}`.toLocaleLowerCase().includes(q))return false;
       return true;
     });
-  },[races,showArchived,country,month,category,verification,state,from,to,query,raceType,futureOnly,savedOnly,saved]);
+  },[races,showArchived,country,month,category,verification,state,from,to,query,raceType,futureOnly,savedOnly,saved,linkedRace]);
   const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
-  const reset=()=>{setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('all');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
-  const resetPage=()=>setPage(1);
+  const reset=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('all');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   return <main className="min-h-screen bg-background text-foreground">
     <header className="border-b border-border bg-slate-950 text-white">
@@ -136,6 +139,7 @@ function Index(){
       {loadError&&<div role="alert" className="mb-6 rounded-lg border border-red-300 p-4"><strong>Could not load races.</strong> {loadError} <button className="ml-2 underline" onClick={()=>window.location.reload()}>Retry</button></div>}
       {!manifest&&!loadError&&<p role="status" className="my-10 text-center text-muted-foreground">{loadStatus}</p>}
       {manifest&&<>
+        {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <h2 className="text-2xl font-bold">{tab==='calendar'?'Race calendar':'Race locations map'}</h2>
           <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(filtered)}><ArrowDownToLine size={16}/> Export CSV</Button></div>
@@ -185,6 +189,9 @@ function Index(){
         </aside>
       </>}
     </div>
-    <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">Young Peloton · European U19 road cycling archive · 2026 · Dates and evidence linked to original sources · Official event names remain in their published language</footer>
+    <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
+      <p>Young Peloton · European U19 road cycling archive · 2026 · Official event names remain in their published language</p>
+      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
+    </footer>
   </main>;
 }
