@@ -35,14 +35,30 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   if (!m.ok) throw new Error(`Failed to load race manifest (${m.status})`);
   const manifest: RaceManifest = await m.json();
   const races: U19Race[] = [];
-  const workerCount = Math.min(6, manifest.parts.length);
+  // Four concurrent downloads avoid a large burst on slow mobile connections.
+  // Retry transient failures, but never silently display an incomplete archive.
+  const workerCount = Math.min(4, manifest.parts.length);
+  const getPart = async (part: string): Promise<unknown[][]> => {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      try {
+        const resp = await fetch(ROOT + part, { signal });
+        if (!resp.ok) throw new Error(`Failed to load ${part} (${resp.status})`);
+        return await resp.json();
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        lastError = error;
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  };
   let next = 0, loaded = 0;
   await Promise.all(Array.from({length:workerCount}, async () => {
     while (next < manifest.parts.length) {
       const i = next++;
-      const resp = await fetch(ROOT + manifest.parts[i], {signal});
-      if (!resp.ok) throw new Error(`Failed to load race records (${resp.status})`);
-      const rows: unknown[][] = await resp.json();
+      const rows = await getPart(manifest.parts[i]);
       for (const row of rows) {
         const race = {} as U19Race;
         manifest.fields.forEach((field,j) => { (race as unknown as Record<string, unknown>)[field] = row[j]; });
