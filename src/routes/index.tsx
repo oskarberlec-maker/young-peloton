@@ -128,7 +128,7 @@ function Index(){
     <section className="border-b border-border bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white">
       <div className="mx-auto max-w-7xl px-5 py-10 md:py-14">
         <p className="text-xs font-semibold uppercase tracking-[.25em] text-cyan-400">European junior road cycling</p>
-        <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight md:text-6xl">Your next race starts here.</h1>
+        <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight md:text-6xl">Find Your Next Race.</h1>
         <p className="mt-4 max-w-3xl text-base text-slate-300">Explore European U19 road races, exact listed dates, sources and an interactive map. Entries are labelled by verification status; being listed does not guarantee U19 eligibility or that a race went ahead.</p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Button onClick={()=>jump('calendar')} className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"><CalendarDays size={17}/> Browse races</Button>
