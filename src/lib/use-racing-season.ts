@@ -36,6 +36,18 @@ export function useRacingSeason() {
     });
     return ()=>{active=false;activeLoad.current++;subscription.subscription.unsubscribe();};
   },[db,refresh]);
+  const signInWithGoogle=async()=>{
+    if(!db)throw new Error('Cloud accounts have not been configured yet.');
+    setBusy(true);setError('');
+    try {
+      const {error}=await db.auth.signInWithOAuth({
+        provider:'google',
+        options:{redirectTo:window.location.origin+'/season'},
+      });
+      if(error)throw error;
+    }catch(e){setError(e instanceof Error?e.message:String(e));throw e;}
+    finally{setBusy(false);}
+  };
   const signIn=async(email:string)=>{
     if(!db)throw new Error('Cloud accounts have not been configured yet.');
     setBusy(true);setError('');
@@ -80,5 +92,5 @@ export function useRacingSeason() {
     else setSaved([]);
     setBusy(false);
   };
-  return {user,ready,saved,busy,error,signIn,signOut,toggle,importLocal,clearAll,localCount:readLocalSavedIds().length};
+  return {user,ready,saved,busy,error,signIn,signInWithGoogle,signOut,toggle,importLocal,clearAll,localCount:readLocalSavedIds().length};
 }
