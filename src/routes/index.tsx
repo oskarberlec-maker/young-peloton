@@ -59,7 +59,7 @@ function Index(){
   const [tab,setTab]=useState<'calendar'|'map'>('calendar');
   const [query,setQuery]=useState('');const [country,setCountry]=useState('all');
   const [month,setMonth]=useState('0');const [category,setCategory]=useState('all');
-  const [verification,setVerification]=useState('all');
+  const [verification,setVerification]=useState('confirmed');
   const [state,setState]=useState('active');const [from,setFrom]=useState('');const [to,setTo]=useState('');
   const [raceType,setRaceType]=useState('all');
   const [year,setYear]=useState(2026);
@@ -110,7 +110,7 @@ function Index(){
   const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
-  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('all');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('confirmed');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = (year === 2026 ? filtered : []);
