@@ -61,6 +61,7 @@ function SeasonPage() {
       {loadError&&<p role="alert" className="text-red-700">{loadError}</p>}
       {!loading&&season.ready&&selected.length===0&&<div className="rounded-xl border p-8 text-center"><p>No races saved yet.</p>
         <Link to="/" className="mt-3 inline-block rounded-md bg-slate-950 px-5 py-2 font-semibold text-white">Find races to add</Link></div>}
+      {season.saved.length>0&&<button type="button" disabled={season.busy} className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:opacity-50" onClick={()=>{if(window.confirm('Remove all races from your racing season? This cannot be undone.'))void season.clearAll();}}>Clear my saved races</button>}
       <div className="grid gap-3 sm:grid-cols-2">{selected.map(r=><article key={r.id} className="rounded-xl border p-4">
         <p className="text-sm font-semibold text-sky-700">{niceDate(r.date)}</p>
         <h3 className="mt-2 font-bold"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:underline">{r.name}</Link></h3>
