@@ -81,11 +81,12 @@ export function U19Map({races}:{races:U19Race[]}) {
       const icon=L.divIcon({className:'',iconSize:[size,size],iconAnchor:[size/2,size/2],
         html:`<span style="display:block;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:2px solid ${outline};box-shadow:0 1px 5px #0005"></span>`});
       const marker=L.marker([point.lat,point.lon],{icon});
-      marker.on('click',()=>setSelected(point));
+      marker.on('click',()=>{setSelected(point);requestAnimationFrame(()=>document.getElementById('selected-map-location')?.scrollIntoView({behavior:'smooth',block:'nearest'}));});
       return marker;
     });
     layer.addLayers(markers);
   },[locations,ready]);
+  useEffect(()=>{setSelected(null);},[races]);
   const listed=selected?.races.slice(0,40)||[];
   const locatedCount=useMemo(()=>races.filter(r=>r.lat!==null&&r.lon!==null).length,[races]);
   return <div className="space-y-4">
@@ -93,7 +94,7 @@ export function U19Map({races}:{races:U19Race[]}) {
     {error&&<p role="alert" className="text-red-600">Map unavailable: {error}</p>}
     <div ref={holder} className="h-[440px] md:h-[580px] w-full rounded-xl border border-border bg-muted" aria-label="Map of European U19 race locations" />
     <p className="text-xs text-muted-foreground">Geocoding supplied in the source archive (GeoNames / Natural Earth). Map tiles © OpenStreetMap contributors. Zoom in or select a marker to inspect races at that location.</p>
-    {selected&&<section className="rounded-xl border border-border p-4" aria-live="polite">
+    {selected&&<section id="selected-map-location" className="rounded-xl border border-border p-4" aria-live="polite">
       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold">{selected.place} — {selected.races.length} race records</h3><button className="text-sm underline" onClick={()=>setSelected(null)}>Close</button></div>
       {selected.precision==='country'&&<p className="text-amber-700 text-sm">Only a country-level location is known for these records.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
