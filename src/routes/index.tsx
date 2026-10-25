@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark, Flag } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
 import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/')({
 
 const MONTHS=['All months','January','February','March','April','May','June','July','August','September','October','November','December'];
 const PAGE_SIZE=48;
-const todayISO = () => new Date().toLocaleDateString('en-CA');
+const todayISO = () => new Date().toISOString().slice(0,10);
 const raceOverlaps = (r: U19Race, start: string, end: string) =>
   (!start || (r.enddate || r.date) >= start) && (!end || (r.date || r.enddate) <= end);
 const raceTypeLabel = (r: U19Race) => englishRaceType(r.type).toLowerCase();
@@ -91,7 +91,7 @@ function Index(){
       if(savedOnly&&!saved.includes(r.id))return false;
       if(futureOnly && (r.enddate||r.date)<todayISO())return false;
       if(country!=='all'&&r.countryCode!==country)return false;
-      if(month!=='0'&&DATE_MONTH(r.date)!==Number(month))return false;
+      if(month!=='0' && !raceOverlaps(r,`2026-${month.padStart(2,'0')}-01`,new Date(Date.UTC(2026,Number(month),0)).toISOString().slice(0,10)))return false;
       if(category==='men'&&!r.sex.includes('M'))return false;
       if(category==='women'&&!r.sex.includes('Ž')&&!/women|female/i.test(r.sex))return false;
       if(verification!=='all'&&r.bucket!==verification)return false;
