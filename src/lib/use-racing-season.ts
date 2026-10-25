@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { seasonDatabase } from './supabase-client';
 import { readLocalSavedIds, safeSavedIds, writeLocalSavedIds } from './season-storage';
@@ -11,9 +11,12 @@ export function useRacingSeason() {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const db=seasonDatabase();
+  const activeLoad = useRef(0);
   const refresh=useCallback(async (who:User|null)=>{
+    const version=++activeLoad.current;
     if(!db||!who){setSaved(readLocalSavedIds());return;}
     const result=await db.from('racing_season_entries').select('race_id,season_year').eq('user_id',who.id);
+    if(version!==activeLoad.current)return; // Prevent a prior account's response from showing after logout/switch.
     if(result.error){setError('Could not load your season. '+result.error.message);return;}
     setSaved(safeSavedIds((result.data as SavedRow[]).map(x=>x.race_id)));
   },[db]);
@@ -31,7 +34,7 @@ export function useRacingSeason() {
       // Avoid using Supabase methods synchronously from inside its auth callback.
       queueMicrotask(()=>{if(active)void refresh(session?.user||null);});
     });
-    return ()=>{active=false;subscription.subscription.unsubscribe();};
+    return ()=>{active=false;activeLoad.current++;subscription.subscription.unsubscribe();};
   },[db,refresh]);
   const signIn=async(email:string)=>{
     if(!db)throw new Error('Cloud accounts have not been configured yet.');
@@ -42,7 +45,7 @@ export function useRacingSeason() {
   };
   const signOut=async()=>{if(!db)return;setBusy(true);try{
     const {error}=await db.auth.signOut();if(error)throw error;
-    setUser(null);setSaved(readLocalSavedIds());
+    activeLoad.current++;setUser(null);setSaved(readLocalSavedIds());
   }catch(e){setError(String(e));}finally{setBusy(false);}};
   const toggle=async(id:string,year=2026)=>{
     if(busy)return;
