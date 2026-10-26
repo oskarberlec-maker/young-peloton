@@ -131,15 +131,24 @@ function Index(){
         </nav>
       </div>
     </header>
-    <section className="border-b border-border bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white">
-      <div className="mx-auto max-w-7xl px-5 py-10 md:py-14">
-        <p className="text-xs font-semibold uppercase tracking-[.25em] text-cyan-400">European junior road cycling</p>
-        <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight md:text-6xl">Find your next U19 cycling race in Europe.</h1>
-        <p className="mt-4 max-w-3xl text-base text-slate-300">Search European junior cycling events by country, date and race type. Compare verified race information and plan your season in one place.</p>
-        <div className="mt-7 flex flex-wrap gap-3">
-          <Button onClick={()=>jump('calendar')} className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"><CalendarDays size={17}/> Browse races</Button>
-          <Link to="/season" className="inline-flex items-center rounded-md border border-cyan-400 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">My Racing Season</Link>
-          <Button onClick={()=>jump('map')} variant="outline" className="border-slate-400 bg-transparent text-white hover:bg-slate-800 hover:text-white"><MapPinned size={17}/> Explore the map</Button>
+    <section className="yp-hero relative isolate overflow-hidden bg-[#061a30] text-white">
+      <div className="yp-hero-grid absolute inset-0 -z-10 opacity-40" aria-hidden="true" />
+      <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 py-14 lg:grid-cols-[1.3fr_0.7fr] lg:gap-12 lg:py-20">
+        <div>
+          <div className="mb-6 flex items-center gap-3"><span className="h-[2px] w-10 bg-cyan-400" aria-hidden="true" /><span className="text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-300">The junior race index · Europe</span></div>
+          <h1 className="yp-display max-w-3xl text-[clamp(2.9rem,6vw,5.1rem)] leading-[1.04] tracking-[-0.055em]">Find your next <span className="italic text-cyan-300">U19 cycling race</span> in Europe.</h1>
+          <p className="mt-6 max-w-2xl text-[15px] leading-7 text-slate-300 md:text-base">Search European junior cycling events by country, date and race type. Compare verified race information and plan your season in one place.</p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Button onClick={()=>jump('calendar')} className="h-11 rounded-md bg-cyan-300 px-5 font-bold text-slate-950 hover:bg-cyan-200"><CalendarDays size={17}/> Explore races</Button>
+            <Link to="/season" className="inline-flex h-11 items-center rounded-md border border-white/30 px-5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-white/10">My racing season <ArrowUpRight size={16} className="ml-2"/></Link>
+          </div>
+          <p className="mt-6 text-[11px] leading-5 text-slate-400">Race information is sourced from event listings. Always confirm entry details with the organiser.</p>
+        </div>
+        <div className="yp-season-graphic relative hidden min-h-[345px] overflow-hidden border border-white/15 lg:block" aria-hidden="true">
+          <div className="absolute left-7 top-7 text-[10px] font-bold uppercase tracking-[0.3em] text-cyan-300">YP / Race calendar</div>
+          <div className="yp-speed-stripes absolute right-[-8%] top-[20%] h-[160px] w-[120%] rotate-[-18deg]" />
+          <div className="absolute bottom-14 left-7 text-[120px] font-black leading-none tracking-[-0.12em] text-white/90">26<span className="ml-3 align-top text-lg font-medium tracking-normal text-cyan-300">/ 27</span></div>
+          <div className="absolute bottom-7 left-7 right-7 flex items-center justify-between border-t border-white/30 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/65"><span>Road · TT · Stage</span><span>EST. 2026</span></div>
         </div>
       </div>
     </section>
