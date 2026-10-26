@@ -91,3 +91,20 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Young Peloton's racing editorial design system. */
+.yp-site-header { position: relative; z-index: 20; }
+.yp-nav-link { padding: .6rem .8rem; border-bottom: 2px solid transparent; color: #475569; font-weight: 650; transition: color .2s,border-color .2s; }
+.yp-nav-link:hover { color: #075985; }
+.yp-nav-active { border-color: #0284c7; color: #0f172a; }
+.yp-display { font-family: "Inter", system-ui, sans-serif; font-weight: 850; }
+.yp-display .italic { font-family: "Fraunces", Georgia, serif; font-weight: 500; }
+.yp-hero-grid { background-image: linear-gradient(to right,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.045) 1px,transparent 1px); background-size: 56px 56px; mask-image: linear-gradient(to right,transparent,#000); }
+.yp-season-graphic { background: linear-gradient(140deg,#0a334f 0%,#08253d 55%,#06172e 100%); }
+.yp-speed-stripes { background: repeating-linear-gradient(to bottom,transparent 0px,transparent 17px,rgba(103,232,249,.7) 18px,rgba(103,232,249,.7) 20px,transparent 21px,transparent 38px); }
+.yp-stat + .yp-stat { border-top: 1px solid #e2e8f0; }
+.yp-section-heading { font-family: "Fraunces", Georgia, serif; }
+.yp-race-card:hover { border-color: #7dd3fc; box-shadow: 0 9px 24px rgba(2,34,60,.07); transform: translateY(-2px); }
+.yp-filter-panel { box-shadow: 0 8px 28px rgba(15,23,42,.035); }
+@media(min-width:640px){.yp-stat { padding-left: 2rem; }.yp-stat:first-child { padding-left:0; }.yp-stat + .yp-stat { border-top:0; border-left:1px solid #e2e8f0; }}
+@media(prefers-reduced-motion: reduce){.yp-race-card:hover {transform:none;}}
