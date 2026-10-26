@@ -152,11 +152,11 @@ function Index(){
         </div>
       </div>
     </section>
-    <div className="mx-auto max-w-7xl px-5 py-8">
-      {manifest&&<div className="mb-7 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border p-4"><p className="text-sm text-muted-foreground">European source records</p><p className="mt-1 text-3xl font-bold tabular-nums">{manifest.rawEuropeanRecords.toLocaleString('en')}</p></div>
-        <div className="rounded-xl border border-border p-4"><p className="text-sm text-muted-foreground">Distinct listed entries</p><p className="mt-1 text-3xl font-bold tabular-nums">{manifest.uniqueVisibleRecords.toLocaleString('en')}</p></div>
-        <div className="rounded-xl border border-border p-4"><p className="text-sm text-muted-foreground">Countries / regions</p><p className="mt-1 text-3xl font-bold tabular-nums">{countries.length}</p></div>
+    <div className="mx-auto max-w-7xl px-5 py-10">
+      {manifest&&<div className="yp-index-stats mb-10 grid gap-4 border-y border-slate-200 py-3 sm:grid-cols-3">
+        <div className="yp-stat py-3"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">European source records</p><p className="mt-1 font-mono text-[27px] font-semibold tracking-tight text-slate-950 tabular-nums">{manifest.rawEuropeanRecords.toLocaleString('en')}</p></div>
+        <div className="yp-stat py-3"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Distinct listed entries</p><p className="mt-1 font-mono text-[27px] font-semibold tracking-tight text-slate-950 tabular-nums">{manifest.uniqueVisibleRecords.toLocaleString('en')}</p></div>
+        <div className="yp-stat py-3"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Countries / regions</p><p className="mt-1 font-mono text-[27px] font-semibold tracking-tight text-slate-950 tabular-nums">{countries.length}</p></div>
       </div>}
       {loadError&&<div role="alert" className="mb-6 rounded-lg border border-red-300 p-4"><strong>Could not load races.</strong> {loadError} <button className="ml-2 underline" onClick={()=>window.location.reload()}>Retry</button></div>}
       {!manifest&&!loadError&&<p role="status" className="my-10 text-center text-muted-foreground">{loadStatus}</p>}
@@ -170,11 +170,11 @@ function Index(){
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
-          <h2 className="text-2xl font-bold">{tab==='calendar'?'Race calendar':'Race locations map'}</h2>
+          <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':'Racing across Europe'}</h2></div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={year!==2026}><ArrowDownToLine size={16}/> CSV</Button>
           <Button variant="outline" onClick={()=>downloadIcs(dateForCalendar)} disabled={year!==2026||dateForCalendar.length===0}><CalendarDays size={16}/> Export calendar (.ics)</Button></div>
         </div>
-        <div className="mb-6 rounded-xl border border-border bg-card p-4">
+        <div className="yp-filter-panel mb-7 rounded-lg border border-slate-200 bg-white p-5 md:p-6">
           <div className="mb-3 flex items-center justify-between sm:hidden"><strong className="text-sm">Find races</strong><button type="button" className="rounded-md border px-3 py-2 text-sm" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide advanced filters':'Advanced filters'}</button></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block text-sm"><span className="mb-1 block font-medium">Search name or place</span><div className="relative"><Search size={16} className="absolute left-3 top-3 text-muted-foreground"/><Input value={query} onChange={e=>{setQuery(e.target.value);resetPage();}} placeholder="Race, town, region…" className="pl-9"/></div></label>
@@ -198,10 +198,10 @@ function Index(){
         </div>
         {tab==='map'?<U19Map races={filtered} />:<>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {shown.map(r=><article key={r.id} className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
+            {shown.map(r=><article key={r.id} className="yp-race-card flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-all duration-200">
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
-                <h3 className="text-base font-bold leading-snug"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
+                <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
                 <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
