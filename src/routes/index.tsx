@@ -115,14 +115,20 @@ function Index(){
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = (year === 2026 ? filtered : []);
   return <main className="min-h-screen bg-background text-foreground">
-    <header className="border-b border-border bg-slate-950 text-white">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-        <a href="/" className="text-xl font-black tracking-tight">YOUNG <span className="text-cyan-400">PELOTON</span></a>
-        <nav aria-label="Primary" className="flex gap-2 text-sm">
-          <button type="button" onClick={()=>setTab('calendar')} className={`rounded-lg px-4 py-2 ${tab==='calendar'?'bg-white text-slate-900':'text-slate-200 hover:bg-slate-800'}`}>Calendar</button>
-          <button type="button" onClick={()=>setTab('map')} className={`rounded-lg px-4 py-2 ${tab==='map'?'bg-white text-slate-900':'text-slate-200 hover:bg-slate-800'}`}>Map of Europe</button>
+    <header className="yp-site-header border-b border-slate-200 bg-white">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-5 py-4">
+        <Link to="/" className="flex min-w-0 items-center gap-3" aria-label="Young Peloton home">
+          <img src="/yp-favicon.svg" alt="" width="40" height="40" className="rounded-lg" />
+          <span className="flex flex-col leading-none">
+            <span className="text-[15px] font-black tracking-[-0.035em] text-slate-950">YOUNG <span className="text-sky-700">PELOTON</span></span>
+            <span className="mt-1 text-[9px] font-bold tracking-[0.22em] text-slate-500">EUROPEAN JUNIOR RACING</span>
+          </span>
+        </Link>
+        <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm sm:gap-2">
+          <button type="button" onClick={()=>jump('calendar')} className={tab==='calendar'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Races</button>
+          <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Map</button>
+          <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">{user?'My season':'Build my season'} <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
         </nav>
-        <Link to="/season" className="rounded-full border border-cyan-500 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">Build Your Racing Season {user?'· My account':''}</Link>
       </div>
     </header>
     <section className="border-b border-border bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950 text-white">
