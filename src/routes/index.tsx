@@ -20,7 +20,7 @@ export const Route = createFileRoute('/')({
 });
 
 const MONTHS=['All months','January','February','March','April','May','June','July','August','September','October','November','December'];
-const PAGE_SIZE=48;
+const PAGE_SIZE=24;
 const todayISO = () => new Date().toISOString().slice(0,10);
 const raceOverlaps = (r: U19Race, start: string, end: string) =>
   (!start || (r.enddate || r.date) >= start) && (!end || (r.date || r.enddate) <= end);
