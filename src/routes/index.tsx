@@ -78,6 +78,7 @@ function Index(){
   },[year,country,month,category,from,to,query,raceType]);
   const [showArchived,setShowArchived]=useState(false);
   const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(PAGE_SIZE);
   useEffect(()=>{
     const controller=new AbortController();
     loadU19Races((done,total)=>setLoadStatus(`Loading races ${done} of ${total}…`),controller.signal)
@@ -107,9 +108,9 @@ function Index(){
       return true;
     });
   },[races,showArchived,country,month,category,verification,state,from,to,query,raceType,futureOnly,savedOnly,saved,linkedRace,year]);
-  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
-  const shown=filtered.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
+  const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('confirmed');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
@@ -197,6 +198,18 @@ function Index(){
           </div>
         </div>
         {tab==='map'?<U19Map races={filtered} />:<>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600" role="status">
+              Showing {filtered.length?(currentPage-1)*pageSize+1:0}–{Math.min(currentPage*pageSize,filtered.length)} of {filtered.length.toLocaleString('en')} races
+            </p>
+            <label htmlFor="races-per-page" className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              Races per page
+              <select id="races-per-page" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1);}}
+                className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900">
+                {[12,24,48,96].map(size=><option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+          </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {shown.map(r=><article key={r.id} className="yp-race-card flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-all duration-200">
               <div>
