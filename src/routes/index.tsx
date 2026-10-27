@@ -104,7 +104,7 @@ function Index(){
       ['type',raceTypesSelected,[]],
     ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
-    window.history.replaceState(null,'',url.toString());
+    if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());
   },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected]);
   const [showArchived,setShowArchived]=useState(false);
   const [page,setPage]=useState(1);
@@ -140,8 +140,8 @@ function Index(){
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
-  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
-  const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setPage(1);};
+  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = (year === 2026 ? filtered : []);
   return <main className="min-h-screen bg-background text-foreground">
