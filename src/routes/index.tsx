@@ -76,13 +76,12 @@ function Index(){
     const p=new URLSearchParams(window.location.search);
     const parse=(key:string,allowed:string[],defaultValue:string[]=[])=>{
       const all=p.getAll(key).flatMap(v=>v.split(',')).filter(Boolean);
-      return all.length?[...new Set(all.filter(x=>allowed.includes(x)))]:defaultValue;
+      return all.includes('all')?[]:all.length?[...new Set(all.filter(x=>allowed.includes(x)))]:defaultValue;
     };
     if(p.get('year')==='2027')setYear(2027);
     if(p.has('race'))setLinkedRace(p.get('race')||'');
-    setCountriesSelected(parse('country',[])); // Countries are loaded asynchronously below.
     const rawCountries=p.getAll('country').flatMap(v=>v.split(',')).filter(Boolean);
-    if(rawCountries.length)setCountriesSelected([...new Set(rawCountries)]);
+    if(rawCountries.length)setCountriesSelected([...new Set(rawCountries.filter(x=>x!=='all'))]);
     setMonthsSelected(parse('month',Array.from({length:12},(_,i)=>String(i+1))));
     setCategoriesSelected(parse('category',['men','women']));
     setRaceTypesSelected(parse('type',['road','time trial','stage','criterium','hill climb']));
@@ -103,7 +102,7 @@ function Index(){
       ['verification',statusesSelected,['confirmed']],
       ['state',statesSelected,['active']],
       ['type',raceTypesSelected,[]],
-    ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(','))items.forEach(item=>url.searchParams.append(key,item));
+    ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
     window.history.replaceState(null,'',url.toString());
   },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected]);
