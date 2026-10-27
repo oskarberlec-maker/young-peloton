@@ -21,10 +21,10 @@ function archiveRows(): U19Race[] {
 }
 
 describe('Excel 2026 race classification import',()=>{
-  it('matches every race ID and the five complete Excel sheet totals',()=>{
+  it('matches every race ID and the four combined category totals',()=>{
     const races=archiveRows();
     expect(applyExcelRaceLevels(races)).toBe(true);
-    const totals:Record<string,number>={uci:0,national:0,regional:0,club:0,unverified:0};
+    const totals:Record<string,number>={uci:0,national:0,regional:0,unverified:0};
     for(const race of races){
       const tier=getRaceLevel(race);
       expect(tier.label.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('Excel 2026 race classification import',()=>{
     expect(byId.get('AT-UCI-78311-MJ')?.level).toBe('uci');
     expect(byId.get('AL-NC-20-M')?.level).toBe('national');
     expect(byId.get('FR-FFC-C5064347007')?.level).toBe('regional');
-    expect(byId.get('NL-KNWU-110908-Ž')?.level).toBe('club');
+    expect(byId.get('NL-KNWU-110908-Ž')?.level).toBe('regional');
     expect(byId.get('AL-FSHC-12')?.level).toBe('unverified');
   });
 
