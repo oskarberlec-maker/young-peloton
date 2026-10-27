@@ -1,3 +1,6 @@
+import { applyExcelRaceLevels } from './race-level-data';
+import type { ExcelLevelSymbol } from './race-level-data';
+
 /** European U19 2026 race archive (user-supplied source ZIP dated 2026-10-23).
  * Each row is an original record; 'merged' and duplicate rows remain auditable but
  * are not treated as distinct races in the default list or on the map.
@@ -9,6 +12,8 @@ export type U19Race = {
   resultUrl: string; bucket: string; state: string;
   lat: number | null; lon: number | null; precision: string;
   region: string; roadUnconfirmed: number; duplicate: number;
+  /** Imported 2026 Excel tier; not part of the original archive row data. */
+  levelSymbol?: ExcelLevelSymbol;
 };
 export type RaceManifest = {
   year: number; asOf: string; sourceMeta: { total: number; cancelled: number; complete: boolean };
@@ -73,5 +78,7 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   if (new Set(races.map(r=>r.id)).size !== races.length) throw new Error('Duplicate source IDs detected');
   if (races.filter(visibleRace).length !== manifest.uniqueVisibleRecords) throw new Error('Deduplication checksum mismatch');
   if (races.some(r=>!safeUrl(r.sourceUrl))) throw new Error('Missing or unsafe source URL');
+  // Assign each workbook rank to its exact race ID; checksum prevents misaligned imports.
+  applyExcelRaceLevels(races);
   return {manifest,races};
 }
