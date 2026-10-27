@@ -31,10 +31,10 @@ function RacePage(){
  <div><dt className="text-sm text-muted-foreground">Eligibility</dt><dd>{englishConfirmation(race.confirmation)||'Not confirmed'}</dd></div>
  <div><dt className="text-sm text-muted-foreground">Category</dt><dd>{englishCategory(race.sex)}</dd></div>
  <div><dt className="text-sm text-muted-foreground">Discipline</dt><dd>{englishRaceType(race.type)}</dd></div>
- <div><dt className="text-sm text-muted-foreground">Race level</dt><dd className="font-semibold">{getRaceLevel(race).label}</dd><p className="mt-1 text-xs text-muted-foreground">{getRaceLevel(race).basis}</p></div>
+ <div><dt className="text-sm text-muted-foreground">Race level</dt><dd className="font-semibold">{getRaceLevel(race).label}</dd><p className="mt-1 text-sm text-muted-foreground">{getRaceLevel(race).subtype}</p><p className="mt-1 text-xs text-muted-foreground"><strong>Evidence:</strong> {getRaceLevel(race).method} — {getRaceLevel(race).basis}</p></div>
  <div><dt className="text-sm text-muted-foreground">Status</dt><dd>{race.state}</dd></div>
  </dl>
- <p className="rounded-lg border p-4 text-sm">Entry deadline, race distance, elevation gain and start coordinates: not independently verified in this dataset. Please consult the official organizer. Being listed does not guarantee eligibility or that this event takes place.</p>
+ <p className="rounded-lg border p-4 text-sm">Competition levels were imported from the 2026 Young Peloton race-classification workbook. Not every linked source has been checked live. Entry deadline, race distance, elevation gain and start coordinates: not independently verified in this dataset. Please consult the official organizer. Being listed does not guarantee eligibility or that this event takes place.</p>
  <div className="flex flex-wrap gap-4">{safeUrl(race.sourceUrl)&&<a className="text-sky-700 underline" href={race.sourceUrl} target="_blank" rel="noopener noreferrer">Original source</a>}{safeUrl(race.proofUrl)&&<a className="text-sky-700 underline" href={race.proofUrl} target="_blank" rel="noopener noreferrer">Eligibility evidence</a>}</div>
  <a className="text-sky-700 underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect information</a>
  </>}
