@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
+import { MultiRaceFilter } from '@/components/MultiRaceFilter';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
 import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
 import { Button } from '@/components/ui/button';
@@ -57,11 +58,11 @@ function Index(){
   const [loadStatus,setLoadStatus]=useState('Loading 2026 races and original sources…');
   const [loadError,setLoadError]=useState('');
   const [tab,setTab]=useState<'calendar'|'map'>('calendar');
-  const [query,setQuery]=useState('');const [country,setCountry]=useState('all');
-  const [month,setMonth]=useState('0');const [category,setCategory]=useState('all');
-  const [verification,setVerification]=useState('confirmed');
-  const [state,setState]=useState('active');const [from,setFrom]=useState('');const [to,setTo]=useState('');
-  const [raceType,setRaceType]=useState('all');
+  const [query,setQuery]=useState('');const [countriesSelected,setCountriesSelected]=useState<string[]>([]);
+  const [monthsSelected,setMonthsSelected]=useState<string[]>([]);const [categoriesSelected,setCategoriesSelected]=useState<string[]>([]);
+  const [statusesSelected,setStatusesSelected]=useState<string[]>(['confirmed']);
+  const [statesSelected,setStatesSelected]=useState<string[]>(['active']);const [from,setFrom]=useState('');const [to,setTo]=useState('');
+  const [raceTypesSelected,setRaceTypesSelected]=useState<string[]>([]);
   const [year,setYear]=useState(2026);
   const [advanced,setAdvanced]=useState(false);
   const [futureOnly,setFutureOnly]=useState(false);
@@ -71,11 +72,40 @@ function Index(){
 
   const jump=(target:'calendar'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
-  useEffect(()=>{const params=new URLSearchParams(window.location.search);if(params.get('year')==='2027')setYear(2027);if(params.has('race'))setLinkedRace(params.get('race')||'');if(params.has('country'))setCountry(params.get('country')||'all');if(params.has('month'))setMonth(params.get('month')||'0');if(params.has('category'))setCategory(params.get('category')||'all');if(params.has('from'))setFrom(params.get('from')||'');if(params.has('to'))setTo(params.get('to')||'');if(params.has('q'))setQuery(params.get('q')||'');if(params.has('type'))setRaceType(params.get('type')||'all');},[]);
-  useEffect(()=>{const url=new URL(window.location.href);for(const k of ['year','country','month','category','from','to','q','type'])url.searchParams.delete(k);
-    for(const [k,v] of Object.entries({year:year===2027?'2027':'',country,month,category,from,to,q:query,type:raceType}))if(v&&v!=='all'&&v!=='0')url.searchParams.set(k,v);
+  useEffect(()=>{
+    const p=new URLSearchParams(window.location.search);
+    const parse=(key:string,allowed:string[],defaultValue:string[]=[])=>{
+      const all=p.getAll(key).flatMap(v=>v.split(',')).filter(Boolean);
+      return all.includes('all')?[]:all.length?[...new Set(all.filter(x=>allowed.includes(x)))]:defaultValue;
+    };
+    if(p.get('year')==='2027')setYear(2027);
+    if(p.has('race'))setLinkedRace(p.get('race')||'');
+    const rawCountries=p.getAll('country').flatMap(v=>v.split(',')).filter(Boolean);
+    if(rawCountries.length)setCountriesSelected([...new Set(rawCountries.filter(x=>x!=='all'))]);
+    setMonthsSelected(parse('month',Array.from({length:12},(_,i)=>String(i+1))));
+    setCategoriesSelected(parse('category',['men','women']));
+    setRaceTypesSelected(parse('type',['road','time trial','stage','criterium','hill climb']));
+    setStatusesSelected(parse('verification',['confirmed','conditional','review','no'],['confirmed']));
+    setStatesSelected(parse('state',['active','cancelled','merged'],['active']));
+    if(p.has('from'))setFrom(p.get('from')||'');
+    if(p.has('to'))setTo(p.get('to')||'');
+    if(p.has('q'))setQuery(p.get('q')||'');
+  },[]);
+  useEffect(()=>{
+    const url=new URL(window.location.href);
+    for(const key of ['year','country','month','category','verification','state','from','to','q','type'])url.searchParams.delete(key);
+    if(year===2027)url.searchParams.set('year','2027');
+    for(const [key,items,defaults] of [
+      ['country',countriesSelected,[]],
+      ['month',monthsSelected,[]],
+      ['category',categoriesSelected,[]],
+      ['verification',statusesSelected,['confirmed']],
+      ['state',statesSelected,['active']],
+      ['type',raceTypesSelected,[]],
+    ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
+    if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
     window.history.replaceState(null,'',url.toString());
-  },[year,country,month,category,from,to,query,raceType]);
+  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected]);
   const [showArchived,setShowArchived]=useState(false);
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(PAGE_SIZE);
@@ -96,22 +126,21 @@ function Index(){
       if(!showArchived&&!visibleRace(r))return false;
       if(savedOnly&&!saved.includes(r.id))return false;
       if(futureOnly && (r.enddate||r.date)<todayISO())return false;
-      if(country!=='all'&&r.countryCode!==country)return false;
-      if(month!=='0' && !raceOverlaps(r,`2026-${month.padStart(2,'0')}-01`,new Date(Date.UTC(2026,Number(month),0)).toISOString().slice(0,10)))return false;
-      if(category==='men'&&!r.sex.includes('M'))return false;
-      if(category==='women'&&!r.sex.includes('Ž')&&!/women|female/i.test(r.sex))return false;
-      if(verification!=='all'&&r.bucket!==verification)return false;
-      if(state!=='all'&&r.state!==state)return false;
-      if(raceType!=='all'&&!raceTypeLabel(r).includes(raceType))return false;
+      if(countriesSelected.length&&!countriesSelected.includes(r.countryCode))return false;
+      if(monthsSelected.length&&!monthsSelected.some(m=>raceOverlaps(r,`2026-${m.padStart(2,'0')}-01`,new Date(Date.UTC(2026,Number(m),0)).toISOString().slice(0,10))))return false;
+      if(categoriesSelected.length&&!categoriesSelected.some(c=>c==='men'?r.sex.includes('M'):r.sex.includes('Ž')||/women|female/i.test(r.sex)))return false;
+      if(statusesSelected.length&&!statusesSelected.includes(r.bucket))return false;
+      if(statesSelected.length&&!statesSelected.includes(r.state))return false;
+      if(raceTypesSelected.length&&!raceTypesSelected.some(t=>raceTypeLabel(r).includes(t)))return false;
       if((from||to)&&!raceOverlaps(r,from,to))return false;
       if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)} ${englishCategory(r.sex)} ${englishRaceType(r.type)} ${englishConfirmation(r.confirmation)} ${englishRaceNote(r.status)}`.toLocaleLowerCase().includes(q))return false;
       return true;
     });
-  },[races,showArchived,country,month,category,verification,state,from,to,query,raceType,futureOnly,savedOnly,saved,linkedRace,year]);
+  },[races,showArchived,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,futureOnly,savedOnly,saved,linkedRace,year]);
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
-  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountry('all');setMonth('0');setCategory('all');setVerification('confirmed');setState('active');setFrom('');setTo('');setRaceType('all');setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');window.history.replaceState(null,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = (year === 2026 ? filtered : []);
@@ -179,21 +208,22 @@ function Index(){
           <div className="mb-3 flex items-center justify-between sm:hidden"><strong className="text-sm">Find races</strong><button type="button" className="rounded-md border px-3 py-2 text-sm" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide advanced filters':'Advanced filters'}</button></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block text-sm"><span className="mb-1 block font-medium">Search name or place</span><div className="relative"><Search size={16} className="absolute left-3 top-3 text-muted-foreground"/><Input value={query} onChange={e=>{setQuery(e.target.value);resetPage();}} placeholder="Race, town, region…" className="pl-9"/></div></label>
-            <label className="block text-sm"><span className="mb-1 block font-medium">Country</span><select className={controlClass} value={country} onChange={e=>{setCountry(e.target.value);resetPage();}}><option value="all">All countries</option>{countries.map(([code,label])=><option value={code} key={code}>{label}</option>)}</select></label>
-            <label className="block text-sm"><span className="mb-1 block font-medium">Month</span><select className={controlClass} value={month} onChange={e=>{setMonth(e.target.value);resetPage();}}>{MONTHS.map((m,i)=><option value={i} key={m}>{m}</option>)}</select></label>
-            <label className="block text-sm"><span className="mb-1 block font-medium">Category</span><select className={controlClass} value={category} onChange={e=>{setCategory(e.target.value);resetPage();}}><option value="all">U19 men & women / unspecified</option><option value="men">Men</option><option value="women">Women</option></select></label>
-            <label className={advanced?'block text-sm':'hidden text-sm sm:block'}><span className="mb-1 block font-medium">U19 verification</span><select className={controlClass} value={verification} onChange={e=>{setVerification(e.target.value);resetPage();}}>{statusOptions.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
-            <label className={advanced?'block text-sm':'hidden text-sm sm:block'}><span className="mb-1 block font-medium">Race state</span><select className={controlClass} value={state} onChange={e=>{setState(e.target.value);resetPage();}}><option value="all">All including cancelled</option><option value="active">Not marked cancelled</option><option value="cancelled">Cancelled</option>{showArchived&&<option value="merged">Merged / archived</option>}</select></label>
+            <MultiRaceFilter label="Countries" choices={countries.map(([value,label])=>({value,label}))} selected={countriesSelected} onChange={v=>{setCountriesSelected(v);resetPage();}} searchable/>
+            <MultiRaceFilter label="Months" choices={MONTHS.slice(1).map((label,i)=>({value:String(i+1),label}))} selected={monthsSelected} onChange={v=>{setMonthsSelected(v);resetPage();}}/>
+            <MultiRaceFilter label="Categories" choices={[{value:'men',label:'Men'},{value:'women',label:'Women'}]} selected={categoriesSelected} onChange={v=>{setCategoriesSelected(v);resetPage();}}/>
+            <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="U19 verification" choices={statusOptions.filter(([value])=>value!=='all').map(([value,label])=>({value,label}))} selected={statusesSelected} onChange={v=>{setStatusesSelected(v);resetPage();}}/></div>
+            <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="Race state" choices={[{value:'active',label:'Active'},{value:'cancelled',label:'Cancelled'},...(showArchived?[{value:'merged',label:'Merged / archived'}]:[])]} selected={statesSelected} onChange={v=>{setStatesSelected(v);resetPage();}}/></div>
+
             <label className={advanced?'block text-sm':'hidden text-sm sm:block'}><span className="mb-1 block font-medium">From</span><input type="date" className={controlClass} value={from} onChange={e=>{setFrom(e.target.value);resetPage();}} /></label>
             <label className={advanced?'block text-sm':'hidden text-sm sm:block'}><span className="mb-1 block font-medium">Until</span><input type="date" className={controlClass} value={to} onChange={e=>{setTo(e.target.value);resetPage();}} /></label>
-          <label className={advanced?'block text-sm':'hidden text-sm sm:block'}><span className="mb-1 block font-medium">Race type</span><select className={controlClass} value={raceType} onChange={e=>{setRaceType(e.target.value);resetPage();}}><option value="all">All race types</option><option value="road">Road race</option><option value="time trial">Time trial</option><option value="stage">Stage race</option><option value="criterium">Criterium</option><option value="hill climb">Hill climb</option></select></label>
+          <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="Race types" choices={[{value:'road',label:'Road race'},{value:'time trial',label:'Time trial'},{value:'stage',label:'Stage race'},{value:'criterium',label:'Criterium'},{value:'hill climb',label:'Hill climb'}]} selected={raceTypesSelected} onChange={v=>{setRaceTypesSelected(v);resetPage();}}/></div>
           </div>
           <div className="mt-3 flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={futureOnly} onChange={e=>{setFutureOnly(e.target.checked);resetPage();}}/>Upcoming only</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={savedOnly} onChange={e=>{setSavedOnly(e.target.checked);resetPage();}}/>Saved races ({saved.length})</label>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setState('active');resetPage();}} />Show archived merged / duplicate source records ({manifest.mergedRecords+manifest.semanticDuplicateRecords})</label>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setStatesSelected(['active']);resetPage();}} />Show archived merged / duplicate source records ({manifest.mergedRecords+manifest.semanticDuplicateRecords})</label>
             <button type="button" onClick={reset} className="inline-flex items-center gap-2 text-sm text-sky-700 hover:underline"><RotateCcw size={14}/> Reset filters</button>
           </div>
         </div>
