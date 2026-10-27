@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
+import { getRaceLevel, LEVEL_OPTIONS, type RaceLevel } from '@/lib/race-level';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
 import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ function downloadCsv(races:U19Race[]) {
   const cols:[string,(r:U19Race)=>string][]=[
     ['Race ID',r=>r.id],['Race',r=>r.name],['Country',r=>countryLabel(r.countryCode,r.country)],['Location',r=>r.place],
     ['Date',r=>r.date],['End date',r=>r.enddate],['Category',r=>englishCategory(r.sex)],['Type',r=>englishRaceType(r.type)],
-    ['U19 status',r=>englishConfirmation(r.confirmation)],['Race state',r=>r.state],['Notice',r=>englishRaceNote(r.status)],
+    ['U19 status',r=>englishConfirmation(r.confirmation)],['Race level',r=>getRaceLevel(r).label],['Level basis',r=>getRaceLevel(r).basis],['Race state',r=>r.state],['Notice',r=>englishRaceNote(r.status)],
     ['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],['Results',r=>r.resultUrl],
   ];
   const safeCell=(value:string)=>{
@@ -63,6 +64,7 @@ function Index(){
   const [statusesSelected,setStatusesSelected]=useState<string[]>(['confirmed']);
   const [statesSelected,setStatesSelected]=useState<string[]>(['active']);const [from,setFrom]=useState('');const [to,setTo]=useState('');
   const [raceTypesSelected,setRaceTypesSelected]=useState<string[]>([]);
+  const [levelsSelected,setLevelsSelected]=useState<RaceLevel[]>([]);
   const [year,setYear]=useState(2026);
   const [advanced,setAdvanced]=useState(false);
   const [futureOnly,setFutureOnly]=useState(false);
@@ -85,6 +87,7 @@ function Index(){
     setMonthsSelected(parse('month',Array.from({length:12},(_,i)=>String(i+1))));
     setCategoriesSelected(parse('category',['men','women']));
     setRaceTypesSelected(parse('type',['road','time trial','stage','criterium','hill climb']));
+    setLevelsSelected(parse('level',LEVEL_OPTIONS.map(x=>x.value)) as RaceLevel[]);
     setStatusesSelected(parse('verification',['confirmed','conditional','review','no'],['confirmed']));
     setStatesSelected(parse('state',['active','cancelled','merged'],['active']));
     if(p.has('from'))setFrom(p.get('from')||'');
@@ -93,7 +96,7 @@ function Index(){
   },[]);
   useEffect(()=>{
     const url=new URL(window.location.href);
-    for(const key of ['year','country','month','category','verification','state','from','to','q','type'])url.searchParams.delete(key);
+    for(const key of ['year','country','month','category','verification','state','from','to','q','type','level'])url.searchParams.delete(key);
     if(year===2027)url.searchParams.set('year','2027');
     for(const [key,items,defaults] of [
       ['country',countriesSelected,[]],
@@ -102,10 +105,11 @@ function Index(){
       ['verification',statusesSelected,['confirmed']],
       ['state',statesSelected,['active']],
       ['type',raceTypesSelected,[]],
+      ['level',levelsSelected,[]],
     ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
     if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());
-  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected]);
+  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected]);
   const [showArchived,setShowArchived]=useState(false);
   const [page,setPage]=useState(1);
   const [pageSize,setPageSize]=useState(PAGE_SIZE);
@@ -132,15 +136,16 @@ function Index(){
       if(statusesSelected.length&&!statusesSelected.includes(r.bucket))return false;
       if(statesSelected.length&&!statesSelected.includes(r.state))return false;
       if(raceTypesSelected.length&&!raceTypesSelected.some(t=>raceTypeLabel(r).includes(t)))return false;
+      if(levelsSelected.length&&!levelsSelected.includes(getRaceLevel(r).level))return false;
       if((from||to)&&!raceOverlaps(r,from,to))return false;
       if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)} ${englishCategory(r.sex)} ${englishRaceType(r.type)} ${englishConfirmation(r.confirmation)} ${englishRaceNote(r.status)}`.toLocaleLowerCase().includes(q))return false;
       return true;
     });
-  },[races,showArchived,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,futureOnly,savedOnly,saved,linkedRace,year]);
+  },[races,showArchived,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,futureOnly,savedOnly,saved,linkedRace,year]);
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
-  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = (year === 2026 ? filtered : []);
@@ -211,6 +216,7 @@ function Index(){
             <MultiRaceFilter label="Countries" choices={countries.map(([value,label])=>({value,label}))} selected={countriesSelected} onChange={v=>{setCountriesSelected(v);resetPage();}} searchable/>
             <MultiRaceFilter label="Months" choices={MONTHS.slice(1).map((label,i)=>({value:String(i+1),label}))} selected={monthsSelected} onChange={v=>{setMonthsSelected(v);resetPage();}}/>
             <MultiRaceFilter label="Categories" choices={[{value:'men',label:'Men'},{value:'women',label:'Women'}]} selected={categoriesSelected} onChange={v=>{setCategoriesSelected(v);resetPage();}}/>
+            <MultiRaceFilter label="Race level" choices={LEVEL_OPTIONS} selected={levelsSelected} onChange={v=>{setLevelsSelected(v as RaceLevel[]);resetPage();}}/>
             <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="U19 verification" choices={statusOptions.filter(([value])=>value!=='all').map(([value,label])=>({value,label}))} selected={statusesSelected} onChange={v=>{setStatusesSelected(v);resetPage();}}/></div>
             <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="Race state" choices={[{value:'active',label:'Active'},{value:'cancelled',label:'Cancelled'},...(showArchived?[{value:'merged',label:'Merged / archived'}]:[])]} selected={statesSelected} onChange={v=>{setStatesSelected(v);resetPage();}}/></div>
 
@@ -245,6 +251,7 @@ function Index(){
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
                 <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
+                <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span></div>
                 <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
