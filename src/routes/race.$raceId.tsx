@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { loadU19Races, niceDate, countryLabel, safeUrl, type U19Race } from '@/lib/u19-data';
 import { englishCategory,englishRaceType,englishConfirmation } from '@/lib/u19-english';
+import { getRaceLevel } from '@/lib/race-level';
 export const Route=createFileRoute('/race/$raceId')({
  head:()=>({meta:[{title:'Race details — Young Peloton'},{name:'description',content:'Junior road cycling race details and original verification sources.'}]}),
  component:RacePage,
@@ -30,6 +31,7 @@ function RacePage(){
  <div><dt className="text-sm text-muted-foreground">Eligibility</dt><dd>{englishConfirmation(race.confirmation)||'Not confirmed'}</dd></div>
  <div><dt className="text-sm text-muted-foreground">Category</dt><dd>{englishCategory(race.sex)}</dd></div>
  <div><dt className="text-sm text-muted-foreground">Discipline</dt><dd>{englishRaceType(race.type)}</dd></div>
+ <div><dt className="text-sm text-muted-foreground">Race level</dt><dd className="font-semibold">{getRaceLevel(race).label}</dd><p className="mt-1 text-xs text-muted-foreground">{getRaceLevel(race).basis}</p></div>
  <div><dt className="text-sm text-muted-foreground">Status</dt><dd>{race.state}</dd></div>
  </dl>
  <p className="rounded-lg border p-4 text-sm">Entry deadline, race distance, elevation gain and start coordinates: not independently verified in this dataset. Please consult the official organizer. Being listed does not guarantee eligibility or that this event takes place.</p>
