@@ -6,7 +6,8 @@ import type { U19Race } from './u19-data';
  * This avoids another network request and keeps the data reproducible.
  * The workbook classified source records but did NOT verify every external URL live.
  */
-export const EXCEL_LEVEL_COUNTS = {uci:133,national:735,regional:2604,club:2370,unverified:7563} as const;
+// Display the 2,604 regional and 2,370 club/training records under one Regional tier.
+export const EXCEL_LEVEL_COUNTS = {uci:133,national:735,regional:4974,unverified:7563} as const;
 export const EXCEL_LEVEL_SNAPSHOT = '2026-10-27';
 const ID_FINGERPRINT = 477206250;
 const RECORD_COUNT = 13405;
@@ -14,7 +15,7 @@ const ENCODED_LEVELS = "12.9A.43.22.2aA.19.22.bA.23.bA.33.12.aA.21.4A.21.22.2A.1
 
 /** Maps each imported workbook subrank to its source-evidence explanation. */
 export const EXCEL_LEVEL_META = {
-  '0': {level:'club',label:'Club / training',subtype:'Club / training race',method:'Source category',basis:'The original category describes a club or training event.'},
+  '0': {level:'regional',label:'Regional',subtype:'Regional / local event',method:'Source category',basis:'The original source describes a local club or training event, included in the regional grouping for display.'},
   '1': {level:'national',label:'National',subtype:'National championship (title)',method:'Event title',basis:'The race title identifies a national championship; the title should be confirmed with the organiser.'},
   '2': {level:'national',label:'National',subtype:'National championship (CN)',method:'Source category',basis:'The original CN/NK category identifies a national championship.'},
   '3': {level:'national',label:'National',subtype:'National championship (NC)',method:'Source identifier',basis:'The NC code in this archive identifies a national championship.'},
