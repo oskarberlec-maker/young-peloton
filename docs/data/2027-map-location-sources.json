@@ -1,0 +1,335 @@
+{
+  "method": "Locations copied from the same competition in the 2026 archive at user request; these are historical approximate locations, not verified 2027 start lines. Unmatched races remain unmapped.",
+  "matches": [
+    {
+      "race2027": "uci-2027-80539",
+      "source2026": "BE-UCI-78015-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80121",
+      "source2026": "ES-FCC-5310624-M",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80206",
+      "source2026": "ES-RFEC-33473-M",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80548",
+      "source2026": "BE-UCI-78039-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-81041",
+      "source2026": "FR-UCI-78055-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81063",
+      "source2026": "BE-UCI-78051-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80902",
+      "source2026": "BE-UCI-78063-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80542",
+      "source2026": "BE-UCI-78074-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-79961",
+      "source2026": "IT-UCI-78080-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80074",
+      "source2026": "FR-UCI-78156-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-79976",
+      "source2026": "FR-FFC-5253282002",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-81179",
+      "source2026": "ES-RFEC-32101-M",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80919",
+      "source2026": "FR-FFC-4759114005",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-79980",
+      "source2026": "IT-UCI-78132-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80098",
+      "source2026": "IT-UCI-78123-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81211",
+      "source2026": "FR-FFC-4329440001",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-81006",
+      "source2026": "IT-UCI-78128-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80155",
+      "source2026": "PL-UCI-78142-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80572",
+      "source2026": "CZ-UCI-78151-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81168",
+      "source2026": "CZ-UCI-78159-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81026",
+      "source2026": "BE-UCI-78162-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80549",
+      "source2026": "BE-UCI-78207-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80585",
+      "source2026": "NL-UCI-78200-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80932",
+      "source2026": "FR-FFC-4356009005",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-80116",
+      "source2026": "IT-178681",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-81068",
+      "source2026": "BE-UCI-78169-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81146",
+      "source2026": "CH-UCI-78215-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80183",
+      "source2026": "ES-UCI-78221-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80030",
+      "source2026": "FR-UCI-78237-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80009",
+      "source2026": "FR-UCI-78240-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81123",
+      "source2026": "IT-UCI-78241-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80145",
+      "source2026": "PL-UCI-78250-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80156",
+      "source2026": "DE-UCI-78252-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80086",
+      "source2026": "IT-UCI-78149-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80094",
+      "source2026": "IT-UCI-78259-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80574",
+      "source2026": "NL-KNWU-115798-M",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-81142",
+      "source2026": "FR-FFC-5313921010",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-81141",
+      "source2026": "FR-FFC-5313921011",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-81145",
+      "source2026": "FR-FFC-5313921018",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-80141",
+      "source2026": "LU-UCI-78279-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80992",
+      "source2026": "LU-UCI-78283-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81115",
+      "source2026": "BE-UCI-78278-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80099",
+      "source2026": "FR-FFC-4101003001",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-80554",
+      "source2026": "BE-UCI-78297-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80102",
+      "source2026": "FR-FFC-4329476001",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-81147",
+      "source2026": "SK-UCI-78289-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80536",
+      "source2026": "BE-UCI-78318-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80108",
+      "source2026": "AT-UCI-78311-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80942",
+      "source2026": "IT-178922",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80557",
+      "source2026": "BE-UCI-78329-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-81034",
+      "source2026": "FR-UCI-78590-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-81056",
+      "source2026": "BE-CV-14830",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80179",
+      "source2026": "ES-UCI-78354-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80032",
+      "source2026": "FR-UCI-78365-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-81202",
+      "source2026": "FR-UCI-78357-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80540",
+      "source2026": "BE-UCI-78361-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80975",
+      "source2026": "IT-UCI-78367-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80545",
+      "source2026": "BE-UCI-78374-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80965",
+      "source2026": "IT-UCI-78372-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80069",
+      "source2026": "CH-UCI-78383-MJ",
+      "precision": "country"
+    },
+    {
+      "race2027": "uci-2027-80958",
+      "source2026": "IT-UCI-78384-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80089",
+      "source2026": "IT-UCI-78410-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80553",
+      "source2026": "BE-UCI-78432-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-80117",
+      "source2026": "IT-UCI-78433-MJ",
+      "precision": "area"
+    },
+    {
+      "race2027": "uci-2027-80560",
+      "source2026": "BE-UCI-78449-MJ",
+      "precision": "town"
+    },
+    {
+      "race2027": "uci-2027-79986",
+      "source2026": "FR-UCI-78475-MJ",
+      "precision": "country"
+    }
+  ]
+}

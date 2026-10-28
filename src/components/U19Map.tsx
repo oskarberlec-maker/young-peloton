@@ -94,6 +94,7 @@ export function U19Map({races}:{races:U19Race[]}) {
     {error&&<p role="alert" className="text-red-600">Map unavailable: {error}</p>}
     <div ref={holder} className="h-[440px] md:h-[580px] w-full rounded-xl border border-border bg-muted" aria-label="Map of European U19 race locations" />
     <p className="text-xs text-muted-foreground">Geocoding supplied in the source archive (GeoNames / Natural Earth). Map tiles © OpenStreetMap contributors. Zoom in or select a marker to inspect races at that location.</p>
+    {races.some(r=>r.date.startsWith('2027-'))&&<p className="text-xs text-muted-foreground">2027 markers reuse the same race’s approximate 2026 location; they are not confirmed 2027 start lines. Races without a matching 2026 location are not plotted.</p>}
     {selected&&<section id="selected-map-location" className="rounded-xl border border-border p-4" aria-live="polite">
       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold">{selected.place} — {selected.races.length} race records</h3><button className="text-sm underline" onClick={()=>setSelected(null)}>Close</button></div>
       {selected.precision==='country'&&<p className="text-amber-700 text-sm">Only a country-level location is known for these records.</p>}
