@@ -1,0 +1,47 @@
+name: Daily race source sync
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/source-sync/**'
+      - '.github/workflows/daily-sources.yml'
+permissions:
+  contents: write
+concurrency:
+  group: daily-race-source-sync
+  cancel-in-progress: false
+jobs:
+  check-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test readers and update rules
+        run: python -m unittest discover -s scripts/source-sync -p 'test_*.py' -v
+      - name: Restore previous successful snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/source-sync/publish.py restore
+      - name: Check every distinct stored source
+        run: python scripts/source-sync/run.py --workers 12
+      - name: Publish verified changes and audit history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/source-sync/publish.py publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-sync-report
+          path: |
+            sync-data/status.json
+            sync-data/history.json
+            sync-data/report.json
+          retention-days: 30

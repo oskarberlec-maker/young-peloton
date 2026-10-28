@@ -1,3 +1,4 @@
+import { loadSourceSyncStatus, sourceReportUrl, sourceHistoryUrl, type SourceSyncStatus } from '@/lib/source-updates';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
@@ -54,6 +55,8 @@ function Source({url,children}:{url:string;children:string}){
   return safeUrl(url)?<a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:underline">{children}<ArrowUpRight size={12}/></a>:null;
 }
 function Index(){
+  const [sourceSync,setSourceSync]=useState<SourceSyncStatus|null>(null);
+  useEffect(()=>{const controller=new AbortController();void loadSourceSyncStatus(controller.signal).then(status=>{if(!controller.signal.aborted)setSourceSync(status);});return ()=>controller.abort();},[]);
   const [races,setRaces]=useState<U19Race[]>([]);
   const [manifest,setManifest]=useState<RaceManifest|null>(null);
   const [loadStatus,setLoadStatus]=useState('Loading 2026 races and original sources…');
@@ -201,11 +204,20 @@ function Index(){
           <select id="season" className="rounded-md border bg-background px-3 py-2" value={year} onChange={e=>{setYear(Number(e.target.value));setPage(1);}}>
             <option value={2026}>2026 archive</option><option value={2027}>2027 upcoming season</option>
           </select>
-          {year===2027&&<span role="status" className="text-sm text-amber-800">69 European U19 men’s UCI races with published 2027 dates.</span>}
+          {year===2027&&<span role="status" className="text-sm text-amber-800">European U19 men’s UCI races with published 2027 dates.</span>}
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':'Racing across Europe'}</h2></div>
+          <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
+            {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
+            {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
+            {Date.now()-Date.parse(sourceSync.lastRunAt)>48*60*60*1000&&<strong className="text-amber-800"> Check overdue: last report is more than 48 hours old.</strong>}
+            </> : <>Daily source monitoring is configured. A completed run report is not currently available; showing the last available race data.</>}
+            {' '}Automatic corrections cover supported official-source fields. Other changed pages are flagged for review.
+            {' '}<a className="text-sky-700 underline" href={sourceReportUrl} target="_blank" rel="noopener noreferrer">Check report</a>
+            {' · '}<a className="text-sky-700 underline" href={sourceHistoryUrl} target="_blank" rel="noopener noreferrer">Change history</a>
+          </div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={dateForCalendar.length===0}><ArrowDownToLine size={16}/> CSV</Button>
           <Button variant="outline" onClick={()=>downloadIcs(dateForCalendar)} disabled={dateForCalendar.length===0}><CalendarDays size={16}/> Export calendar (.ics)</Button></div>
         </div>
@@ -267,7 +279,7 @@ function Index(){
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}
         <aside className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The 2026 source archive was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Race levels follow the 13,405-row Young Peloton classification workbook from 27 October 2026; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
+          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The 2026 source archive was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline race levels follow the 13,405-row Young Peloton classification workbook from 27 October 2026; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
         </aside>
       </>}
     </div>

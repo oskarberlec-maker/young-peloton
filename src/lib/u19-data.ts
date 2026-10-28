@@ -1,3 +1,4 @@
+import { applySourceUpdates, loadSourceUpdates } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
 import type { ExcelLevelSymbol } from './race-level-data';
@@ -15,6 +16,8 @@ export type U19Race = {
   region: string; roadUnconfirmed: number; duplicate: number;
   /** Imported 2026 Excel tier; not part of the original archive row data. */
   levelSymbol?: ExcelLevelSymbol;
+  liveLevel?: 'uci' | 'national' | 'regional';
+  uciClass?: string; sourceUpdatedAt?: string; updateSourceUrl?: string;
 };
 export type RaceManifest = {
   year: number; asOf: string; sourceMeta: { total: number; cancelled: number; complete: boolean };
@@ -37,6 +40,7 @@ export const niceDate = (date?: string) => {
   return Number.isNaN(d.getTime()) ? 'Date unconfirmed' : new Intl.DateTimeFormat('en-GB', {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(d);
 };
 export async function loadU19Races(onProgress?: (loaded: number,total: number) => void, signal?: AbortSignal): Promise<{ manifest: RaceManifest, races: U19Race[] }> {
+  const updates = loadSourceUpdates(signal);
   const m = await fetch(ROOT + 'manifest.json', {signal});
   if (!m.ok) throw new Error(`Failed to load race manifest (${m.status})`);
   const manifest: RaceManifest = await m.json();
@@ -81,5 +85,7 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   if (races.some(r=>!safeUrl(r.sourceUrl))) throw new Error('Missing or unsafe source URL');
   // Assign each workbook rank to its exact race ID; checksum prevents misaligned imports.
   applyExcelRaceLevels(races);
-  return {manifest,races: [...races, ...UCI_2027_RACES]};
+  const updated = applySourceUpdates([...races, ...UCI_2027_RACES], await updates);
+  updated.sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999') || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  return {manifest,races: updated};
 }
