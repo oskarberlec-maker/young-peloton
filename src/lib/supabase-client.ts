@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const publishableKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const url = import.meta.env['VITE_SUPABASE_URL'] as string | undefined;
+const publishableKey = import.meta.env['VITE_SUPABASE_ANON_KEY'] as string | undefined;
 export const cloudAccountsAvailable = Boolean(url && publishableKey);
 let client: SupabaseClient | null = null;
 
@@ -27,7 +27,7 @@ export async function googleProviderEnabled(): Promise<boolean | null> {
     });
     if (!response.ok) return null;
     const settings: { external?: Record<string, boolean> } = await response.json();
-    return typeof settings.external?.google === 'boolean' ? settings.external.google : null;
+    return typeof settings.external?.['google'] === 'boolean' ? settings.external['google'] : null;
   } catch {
     return null;
   }

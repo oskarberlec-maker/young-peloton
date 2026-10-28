@@ -47,6 +47,6 @@ export function applyExcelRaceLevels(races: U19Race[]): boolean {
     return part.slice(-1).repeat(count);
   }).join('');
   if(expanded.length!==RECORD_COUNT)throw new Error('Invalid race-level workbook snapshot');
-  for(let i=0;i<sorted.length;i++)sorted[i].levelSymbol=expanded[i] as ExcelLevelSymbol;
+  for(let i=0;i<sorted.length;i++)sorted[i]!.levelSymbol=expanded[i] as ExcelLevelSymbol;
   return true;
 }

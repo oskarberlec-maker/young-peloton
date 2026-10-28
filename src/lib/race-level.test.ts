@@ -29,7 +29,7 @@ describe('Excel 2026 race classification import',()=>{
       const tier=getRaceLevel(race);
       expect(tier.label.length).toBeGreaterThan(0);
       expect(tier.subtype.length).toBeGreaterThan(0);
-      totals[tier.level]++;
+      totals[tier.level]=(totals[tier.level] || 0)+1;
     }
     expect(totals).toEqual(EXCEL_LEVEL_COUNTS);
     const byId=new Map(races.map(r=>[r.id,getRaceLevel(r)]));
@@ -43,6 +43,6 @@ describe('Excel 2026 race classification import',()=>{
   it('does not assign Excel levels to a different or incomplete archive',()=>{
     const fake=[{id:'not-a-record'} as U19Race];
     expect(applyExcelRaceLevels(fake)).toBe(false);
-    expect(getRaceLevel(fake[0]).level).toBe('unverified');
+    expect(getRaceLevel(fake[0]!).level).toBe('unverified');
   });
 });

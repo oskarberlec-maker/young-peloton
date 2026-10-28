@@ -39,9 +39,8 @@ export const niceDate = (date?: string) => {
   const d = new Date(`${date}T12:00:00Z`);
   return Number.isNaN(d.getTime()) ? 'Date unconfirmed' : new Intl.DateTimeFormat('en-GB', {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(d);
 };
-export async function loadU19Races(onProgress?: (loaded: number,total: number) => void, signal?: AbortSignal): Promise<{ manifest: RaceManifest, races: U19Race[] }> {
-  const updates = loadSourceUpdates(signal);
-  const m = await fetch(ROOT + 'manifest.json', {signal});
+async function loadArchive(onProgress?: (loaded: number,total: number) => void, signal?: AbortSignal): Promise<{ manifest: RaceManifest, races: U19Race[] }> {
+  const m = await fetch(ROOT + 'manifest.json', {signal: signal ?? null});
   if (!m.ok) throw new Error(`Failed to load race manifest (${m.status})`);
   const manifest: RaceManifest = await m.json();
   const races: U19Race[] = [];
@@ -53,7 +52,7 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
     for (let attempt = 0; attempt < 3; attempt++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       try {
-        const resp = await fetch(ROOT + part, { signal });
+        const resp = await fetch(ROOT + part, { signal: signal ?? null });
         if (!resp.ok) throw new Error(`Failed to load ${part} (${resp.status})`);
         return await resp.json();
       } catch (error) {
@@ -68,7 +67,7 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   await Promise.all(Array.from({length:workerCount}, async () => {
     while (next < manifest.parts.length) {
       const i = next++;
-      const rows = await getPart(manifest.parts[i]);
+      const rows = await getPart(manifest.parts[i]!);
       for (const row of rows) {
         const race = {} as U19Race;
         manifest.fields.forEach((field,j) => { (race as unknown as Record<string, unknown>)[field] = row[j]; });
@@ -85,7 +84,55 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   if (races.some(r=>!safeUrl(r.sourceUrl))) throw new Error('Missing or unsafe source URL');
   // Assign each workbook rank to its exact race ID; checksum prevents misaligned imports.
   applyExcelRaceLevels(races);
-  const updated = applySourceUpdates([...races, ...UCI_2027_RACES], await updates);
-  updated.sort((a,b) => (a.date || '9999').localeCompare(b.date || '9999') || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return {manifest,races: updated};
+  return {manifest,races};
+}
+let archivePromise: ReturnType<typeof loadArchive> | undefined;
+function archive(onProgress?: (loaded:number,total:number)=>void) {
+  if (!archivePromise) archivePromise = loadArchive(onProgress).catch(error=>{archivePromise=undefined;throw error;});
+  return archivePromise;
+}
+export async function loadU19Races(onProgress?: (loaded:number,total:number)=>void, signal?:AbortSignal, year?:number):Promise<{manifest:RaceManifest;races:U19Race[]}> {
+  const updates=loadSourceUpdates(signal);
+  let base: {manifest:RaceManifest;races:U19Race[]};
+  if(year===2027) {
+    base={races:UCI_2027_RACES,manifest:{year:2027,asOf:'2026-10-28',sourceMeta:{total:UCI_2027_RACES.length,cancelled:0,complete:false},rawEuropeanRecords:UCI_2027_RACES.length,uniqueVisibleRecords:UCI_2027_RACES.length,mergedRecords:0,semanticDuplicateRecords:0,missingDates:0,allHaveSource:true,fields:[],parts:[]}};
+  } else {
+    const data=await archive(onProgress);
+    base={manifest:data.manifest,races:year===2026?data.races:[...data.races,...UCI_2027_RACES]};
+  }
+  if(signal?.aborted)throw new DOMException('Aborted','AbortError');
+  const races=applySourceUpdates(base.races,await updates).map(r=>({...r}));
+  races.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+  return {manifest:base.manifest,races};
+}
+
+/** A detail page needs one lookup shard and one archive part, never all 54. */
+export async function loadU19Race(id:string, signal?:AbortSignal):Promise<U19Race|null> {
+  if(id.startsWith('uci-2027-')) {
+    const {races}=await loadU19Races(undefined,signal,2027);
+    return races.find(r=>r.id===id)||null;
+  }
+  const updates=loadSourceUpdates(signal);
+  if(archivePromise) {
+    const data=await archivePromise;
+    const race=data.races.find(r=>r.id===id);
+    return race?applySourceUpdates([race],await updates)[0]||null:null;
+  }
+  const shard=Array.from(id).reduce((sum,c)=>sum+c.charCodeAt(0),0)%16;
+  const fetchJson=async(path:string)=>{
+    const response=await fetch(ROOT+path,{signal:signal??null});
+    if(!response.ok)throw new Error(`Failed to load race data (${response.status})`);
+    return response.json();
+  };
+  const [manifest,lookup]=await Promise.all([fetchJson('manifest.json'),fetchJson(`lookup-${shard}.json`)]) as [RaceManifest,Record<string,[number,ExcelLevelSymbol]>];
+  const entry=lookup[id];
+  if(!entry)return null;
+  const part=manifest.parts[entry[0]];
+  if(!part)throw new Error('Invalid race lookup');
+  const rows=await fetchJson(part) as unknown[][];
+  const row=rows.find(row=>row[manifest.fields.indexOf('id')]===id);
+  if(!row)throw new Error('Race lookup does not match the archive');
+  const race=Object.fromEntries(manifest.fields.map((field,i)=>[field,row[i]])) as U19Race;
+  race.levelSymbol=entry[1];
+  return applySourceUpdates([race],await updates)[0]||null;
 }

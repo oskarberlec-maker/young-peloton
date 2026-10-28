@@ -15,8 +15,8 @@ import { downloadIcs } from '@/lib/race-calendar';
 
 export const Route = createFileRoute('/')({
   head:()=>({ meta:[
-    { title:'Young Peloton — European U19 Race Calendar 2026' },
-    { name:'description',content:'European junior road cycling races in 2026: dates, original sources and an interactive map of venues. Data and confirmation status are clearly labelled.' },
+    { title:'Young Peloton — European U19 Race Calendar 2026–2027' },
+    { name:'description',content:'European junior road cycling races in 2026 and 2027: dates, original sources and an interactive map of venues. Data and confirmation status are clearly labelled.' },
     { property:'og:title',content:'Young Peloton — European U19 Race Calendar' },
     { property:'og:type',content:'website' },
   ]}),component:Index,
@@ -29,7 +29,7 @@ const raceOverlaps = (r: U19Race, start: string, end: string) =>
   (!start || (r.enddate || r.date) >= start) && (!end || (r.date || r.enddate) <= end);
 const raceTypeLabel = (r: U19Race) => englishRaceType(r.type).toLowerCase();
 const DATE_MONTH=(s:string)=>s&&/^\d{4}-(\d\d)-\d\d$/.test(s)?Number(s.slice(5,7)):0;
-const statusOptions=[['all','All U19 verification statuses'],['confirmed','U19 confirmed'],['conditional','Conditional U19'],['review','Needs review'],['no','U19 not confirmed']];
+const statusOptions: [string,string][]=[['all','All U19 verification statuses'],['confirmed','U19 confirmed'],['conditional','Conditional U19'],['review','Needs review'],['no','U19 not confirmed']];
 const raceClasses: Record<string,string>={confirmed:'bg-emerald-100 text-emerald-800',conditional:'bg-blue-100 text-blue-800',review:'bg-amber-100 text-amber-900',no:'bg-stone-200 text-stone-800'};
 const bucketText: Record<string,string>={confirmed:'U19 confirmed',conditional:'Conditional U19',review:'Needs review',no:'U19 not confirmed'};
 
@@ -59,7 +59,7 @@ function Index(){
   useEffect(()=>{const controller=new AbortController();void loadSourceSyncStatus(controller.signal).then(status=>{if(!controller.signal.aborted)setSourceSync(status);});return ()=>controller.abort();},[]);
   const [races,setRaces]=useState<U19Race[]>([]);
   const [manifest,setManifest]=useState<RaceManifest|null>(null);
-  const [loadStatus,setLoadStatus]=useState('Loading 2026 races and original sources…');
+  const [loadStatus,setLoadStatus]=useState('Loading races and original sources…');
   const [loadError,setLoadError]=useState('');
   const [tab,setTab]=useState<'calendar'|'map'>('calendar');
   const [query,setQuery]=useState('');const [countriesSelected,setCountriesSelected]=useState<string[]>([]);
@@ -69,11 +69,17 @@ function Index(){
   const [raceTypesSelected,setRaceTypesSelected]=useState<string[]>([]);
   const [levelsSelected,setLevelsSelected]=useState<RaceLevel[]>([]);
   const [year,setYear]=useState(2026);
+  const [filtersReady,setFiltersReady]=useState(false);
+  const [calendarReturnTo,setCalendarReturnTo]=useState('/');
   const [advanced,setAdvanced]=useState(false);
   const [futureOnly,setFutureOnly]=useState(false);
   const { saved, toggle: toggleSaved, user } = useRacingSeason();
   const [savedOnly,setSavedOnly]=useState(false);
   const [linkedRace,setLinkedRace]=useState('');
+  const [showArchived,setShowArchived]=useState(false);
+  const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(PAGE_SIZE);
+
 
   const jump=(target:'calendar'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
@@ -96,8 +102,14 @@ function Index(){
     if(p.has('from'))setFrom(p.get('from')||'');
     if(p.has('to'))setTo(p.get('to')||'');
     if(p.has('q'))setQuery(p.get('q')||'');
+    setTab(p.get('view')==='map'?'map':'calendar');
+    setFutureOnly(p.get('upcoming')==='1');setSavedOnly(p.get('saved')==='1');setShowArchived(p.get('archived')==='1');
+    setPage(Math.max(1,Number(p.get('page'))||1));
+    if([12,24,48,96].includes(Number(p.get('size'))))setPageSize(Number(p.get('size')));
+    setFiltersReady(true);
   },[]);
   useEffect(()=>{
+    if(!filtersReady)return;
     const url=new URL(window.location.href);
     for(const key of ['year','country','month','category','verification','state','from','to','q','type','level'])url.searchParams.delete(key);
     if(year===2027)url.searchParams.set('year','2027');
@@ -111,18 +123,21 @@ function Index(){
       ['level',levelsSelected,[]],
     ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
+    for(const [k,v] of [['view',tab==='map'?'map':''],['upcoming',futureOnly?'1':''],['saved',savedOnly?'1':''],['archived',showArchived?'1':''],['page',page>1?String(page):''],['size',pageSize!==PAGE_SIZE?String(pageSize):'']]){if(v)url.searchParams.set(k!,v);else url.searchParams.delete(k!);}
+    setCalendarReturnTo(url.pathname+url.search);
     if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());
-  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected]);
-  const [showArchived,setShowArchived]=useState(false);
-  const [page,setPage]=useState(1);
-  const [pageSize,setPageSize]=useState(PAGE_SIZE);
+  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,filtersReady,tab,futureOnly,savedOnly,showArchived,page,pageSize]);
   useEffect(()=>{
+    if(!filtersReady)return;
     const controller=new AbortController();
-    loadU19Races((done,total)=>setLoadStatus(`Loading races ${done} of ${total}…`),controller.signal)
-      .then(({races,manifest})=>{setRaces(races);setManifest(manifest);setLoadStatus('');setLoadError('');})
+    setManifest(null);setRaces([]);setLoadError('');setLoadStatus('Loading season…');
+    loadU19Races((done,total)=>setLoadStatus(`Loading races ${done} of ${total}…`),controller.signal,year)
+      .then(({races,manifest})=>{if(controller.signal.aborted)return;setRaces(races);setManifest(manifest);setLoadStatus('');setLoadError('');})
       .catch(err=>{if(!controller.signal.aborted)setLoadError(String(err?.message||err));});
     return ()=>controller.abort();
-  },[]);
+  },[year,filtersReady]);
+  useEffect(()=>{if(filtersReady)document.title=`Young Peloton — European U19 Race Calendar ${year}`;},[year,filtersReady]);
+  useEffect(()=>{if(!manifest)return;try{const saved=sessionStorage.getItem('yp-calendar-scroll');if(saved){sessionStorage.removeItem('yp-calendar-scroll');requestAnimationFrame(()=>window.scrollTo(0,Number(saved)||0));}}catch{}},[manifest]);
   const countries=useMemo(()=>[...new Map(races.map(r=>[r.countryCode,countryLabel(r.countryCode,r.country)])).entries()].sort((a,b)=>a[1].localeCompare(b[1])),[races]);
   const selectedLinkedRace=races.find(r=>r.id===linkedRace);
   const filtered=useMemo(()=>{
@@ -148,7 +163,7 @@ function Index(){
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
-  const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const reset=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
   const dateForCalendar = filtered;
@@ -201,7 +216,7 @@ function Index(){
       {manifest&&<>
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <label className="text-sm font-medium" htmlFor="season">Season</label>
-          <select id="season" className="rounded-md border bg-background px-3 py-2" value={year} onChange={e=>{setYear(Number(e.target.value));setPage(1);}}>
+          <select id="season" className="rounded-md border bg-background px-3 py-2" value={year} onChange={e=>{setYear(Number(e.target.value));setFrom('');setTo('');resetPage();}}>
             <option value={2026}>2026 archive</option><option value={2027}>2027 upcoming season</option>
           </select>
           {year===2027&&<span role="status" className="text-sm text-amber-800">European U19 men’s UCI races with published 2027 dates.</span>}
@@ -262,7 +277,7 @@ function Index(){
             {shown.map(r=><article key={r.id} className="yp-race-card flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-all duration-200">
               <div>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
-                <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
+                <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo:calendarReturnTo}} onClick={()=>{try{sessionStorage.setItem('yp-calendar-scroll',String(window.scrollY));}catch{}}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
                 <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span>{getRaceLevel(r).level!=='unverified'&&getRaceLevel(r).level!=='regional'&&<span className="ml-2 text-[11px] text-slate-500">{getRaceLevel(r).subtype}</span>}</div>
                 <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
@@ -279,12 +294,12 @@ function Index(){
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}
         <aside className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The 2026 source archive was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline race levels follow the 13,405-row Young Peloton classification workbook from 27 October 2026; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
+          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The {year} source snapshot was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline 2026 race levels follow the Young Peloton classification workbook; 2027 levels follow the official UCI calendar; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
         </aside>
       </>}
     </div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
-      <p>Young Peloton · European U19 road cycling archive · 2026 · Official event names remain in their published language</p>
+      <p>Young Peloton · European U19 road cycling calendar · {year} · Official event names remain in their published language</p>
       <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">My Racing Season</Link><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
     </footer>
   </main>;

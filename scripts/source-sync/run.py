@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urljoin
-from core import canonical, extract, validate, changes_from_previous, Page
+from core import transport_url, canonical, extract, validate, changes_from_previous, Page
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -77,7 +77,7 @@ class Fetcher:
                 if previous.get('lastModified'):
                     headers['If-Modified-Since'] = previous['lastModified']
                 try:
-                    response = self.opener.open(urllib.request.Request(url, headers=headers), timeout=25)
+                    response = self.opener.open(urllib.request.Request(transport_url(url), headers=headers), timeout=25)
                     try:
                         body = response.read(MAX_BYTES + 1)
                     finally:

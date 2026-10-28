@@ -13,5 +13,7 @@ jobs:
           node-version: '22'
       - run: npm install -g npm@11
       - run: npm install --no-audit --no-fund --legacy-peer-deps
+      - run: python scripts/source-sync/build-detail-index.py --check
+      - run: npx tsc --noEmit
       - run: npm run build
       - run: npm test

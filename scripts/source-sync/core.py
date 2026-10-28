@@ -5,7 +5,7 @@ import json
 import re
 import unicodedata
 from html.parser import HTMLParser
-from urllib.parse import urlsplit, parse_qs, urlunsplit
+from urllib.parse import urlsplit, parse_qs, urlunsplit, quote
 
 FIELDS = {'date', 'enddate', 'name', 'place', 'type', 'state', 'liveLevel', 'uciClass'}
 LEVELS = {'uci', 'national', 'regional'}
@@ -20,6 +20,16 @@ def canonical(url):
     if p.scheme not in ('http', 'https') or not p.hostname or p.username or p.password:
         raise ValueError('Not a public HTTP source URL')
     return urlunsplit((p.scheme, p.netloc, p.path or '/', p.query, ''))
+
+
+def transport_url(url):
+    p = urlsplit(canonical(url))
+    host = p.hostname.encode('idna').decode('ascii')
+    if ':' in host:
+        host = '[' + host + ']'
+    netloc = host + (':' + str(p.port) if p.port else '')
+    return urlunsplit((p.scheme, netloc, quote(p.path, safe="/%:@!$&'()*+,;=-._~"),
+                       quote(p.query, safe="%/?@:!$&'()*+,;=-._~"), ''))
 
 
 def iso(value):

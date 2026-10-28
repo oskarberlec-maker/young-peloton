@@ -24,7 +24,7 @@ export function useRacingSeason() {
     if(!db){setSaved(readLocalSavedIds());setReady(true);return;}
     let active=true;
     db.auth.getUser().then(({data,error})=>{if(!active)return;
-      if(error)setError(error.message);
+      if(error && error.name !== 'AuthSessionMissingError')setError(error.message);
       setUser(data.user||null);
       refresh(data.user||null).finally(()=>{if(active)setReady(true);});
     }).catch(e=>{if(active){setError(String(e));setReady(true);}});

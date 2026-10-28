@@ -6,7 +6,7 @@ import { useRacingSeason } from '@/lib/use-racing-season';
 import { cloudAccountsAvailable, googleProviderEnabled } from '@/lib/supabase-client';
 import { GoogleIdentityButton } from '@/components/GoogleIdentityButton';
 import { TeamSeason } from '@/components/TeamSeason';
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const googleClientId = import.meta.env['VITE_GOOGLE_CLIENT_ID'] as string | undefined;
 
 export const Route=createFileRoute('/season')({
   head:()=>({meta:[{title:'Build Your Racing Season — Young Peloton'},
