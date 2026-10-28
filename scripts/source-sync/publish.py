@@ -61,6 +61,9 @@ def publish():
         raw = (OUT / name).read_text()
         blob = api('/git/blobs', {'content': raw, 'encoding': 'utf-8'})
         tree.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
+    # This branch serves JSON snapshots, not a deployable application.
+    tree.append({'path': 'vercel.json', 'mode': '100644', 'type': 'blob',
+                 'content': json.dumps({'git': {'deploymentEnabled': False}})})
     tree_sha = api('/git/trees', {'tree': tree})['sha']
     commit = api('/git/commits', {'message': 'Daily source check: ' + status['lastRunAt'] + ' (' + str(status['updatedRaces']) + ' race updates)', 'tree': tree_sha, 'parents': [previous] if previous else []})
     if previous:
