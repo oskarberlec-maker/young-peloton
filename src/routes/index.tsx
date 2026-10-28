@@ -47,7 +47,7 @@ function downloadCsv(races:U19Race[]) {
   };
   const lines=[cols.map(c=>safeCell(c[0])).join(','),...races.map(r=>cols.map(c=>safeCell(c[1](r))).join(','))];
   const url=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
-  const a=document.createElement('a');a.href=url;a.download='young-peloton-u19-2026.csv';document.body.append(a);a.click();a.remove();
+  const a=document.createElement('a');a.href=url;a.download='young-peloton-u19.csv';document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
 function Source({url,children}:{url:string;children:string}){
@@ -125,13 +125,13 @@ function Index(){
   const filtered=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase();
     return races.filter(r=>{
-      if(year===2027)return false;
+      if(year===2027 ? !r.id.startsWith('uci-2027-') : r.id.startsWith('uci-2027-'))return false;
       if(linkedRace)return r.id===linkedRace;
       if(!showArchived&&!visibleRace(r))return false;
       if(savedOnly&&!saved.includes(r.id))return false;
       if(futureOnly && (r.enddate||r.date)<todayISO())return false;
       if(countriesSelected.length&&!countriesSelected.includes(r.countryCode))return false;
-      if(monthsSelected.length&&!monthsSelected.some(m=>raceOverlaps(r,`2026-${m.padStart(2,'0')}-01`,new Date(Date.UTC(2026,Number(m),0)).toISOString().slice(0,10))))return false;
+      if(monthsSelected.length&&!monthsSelected.some(m=>raceOverlaps(r,`${year}-${m.padStart(2,'0')}-01`,new Date(Date.UTC(year,Number(m),0)).toISOString().slice(0,10))))return false;
       if(categoriesSelected.length&&!categoriesSelected.some(c=>c==='men'?r.sex.includes('M'):r.sex.includes('Ž')||/women|female/i.test(r.sex)))return false;
       if(statusesSelected.length&&!statusesSelected.includes(r.bucket))return false;
       if(statesSelected.length&&!statesSelected.includes(r.state))return false;
@@ -148,7 +148,7 @@ function Index(){
   const reset=()=>{setYear(2026);setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
-  const dateForCalendar = (year === 2026 ? filtered : []);
+  const dateForCalendar = filtered;
   return <main className="min-h-screen bg-background text-foreground">
     <header className="yp-site-header border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-5 py-4">
@@ -201,13 +201,13 @@ function Index(){
           <select id="season" className="rounded-md border bg-background px-3 py-2" value={year} onChange={e=>{setYear(Number(e.target.value));setPage(1);}}>
             <option value={2026}>2026 archive</option><option value={2027}>2027 upcoming season</option>
           </select>
-          {year===2027&&<span role="status" className="text-sm text-amber-800">No verified 2027 race records have been published to Young Peloton yet.</span>}
+          {year===2027&&<span role="status" className="text-sm text-amber-800">69 European U19 men’s UCI races with published 2027 dates.</span>}
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':'Racing across Europe'}</h2></div>
-          <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={year!==2026}><ArrowDownToLine size={16}/> CSV</Button>
-          <Button variant="outline" onClick={()=>downloadIcs(dateForCalendar)} disabled={year!==2026||dateForCalendar.length===0}><CalendarDays size={16}/> Export calendar (.ics)</Button></div>
+          <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={dateForCalendar.length===0}><ArrowDownToLine size={16}/> CSV</Button>
+          <Button variant="outline" onClick={()=>downloadIcs(dateForCalendar)} disabled={dateForCalendar.length===0}><CalendarDays size={16}/> Export calendar (.ics)</Button></div>
         </div>
         <div className="yp-filter-panel mb-7 rounded-lg border border-slate-200 bg-white p-5 md:p-6">
           <div className="mb-3 flex items-center justify-between sm:hidden"><strong className="text-sm">Find races</strong><button type="button" className="rounded-md border px-3 py-2 text-sm" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide advanced filters':'Advanced filters'}</button></div>
@@ -262,7 +262,7 @@ function Index(){
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}</div>
             </article>)}
           </div>
-          {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 season: verified event dates, registration deadlines, distances and elevation will be added only when supported by official sources. The 2026 archive remains available above.</p>}
+          {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates are published in the official UCI calendar, checked 28 October 2026, and may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
           {filtered.length===0&&<p className="rounded-xl border border-border p-10 text-center text-muted-foreground">No races match these filters. Try a different date, country or verification status.</p>}
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}

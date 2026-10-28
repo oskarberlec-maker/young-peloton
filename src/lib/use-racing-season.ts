@@ -86,7 +86,7 @@ export function useRacingSeason() {
     const ids=readLocalSavedIds().filter(id=>!saved.includes(id));
     if(!ids.length)return;
     setBusy(true);setError('');
-    const rows=ids.map(id=>({user_id:user.id,race_id:id,season_year:2026}));
+    const rows=ids.map(id=>({user_id:user.id,race_id:id,season_year:id.startsWith('uci-2027-')?2027:2026}));
     const {error}=await db.from('racing_season_entries').upsert(rows,{onConflict:'user_id,race_id',ignoreDuplicates:true});
     if(error)setError('Could not import your saved races: '+error.message);
     else {await refresh(user);writeLocalSavedIds([]);}

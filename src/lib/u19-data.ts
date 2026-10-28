@@ -1,3 +1,4 @@
+import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
 import type { ExcelLevelSymbol } from './race-level-data';
 
@@ -80,5 +81,5 @@ export async function loadU19Races(onProgress?: (loaded: number,total: number) =
   if (races.some(r=>!safeUrl(r.sourceUrl))) throw new Error('Missing or unsafe source URL');
   // Assign each workbook rank to its exact race ID; checksum prevents misaligned imports.
   applyExcelRaceLevels(races);
-  return {manifest,races};
+  return {manifest,races: [...races, ...UCI_2027_RACES]};
 }
