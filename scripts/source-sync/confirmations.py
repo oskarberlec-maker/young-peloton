@@ -1,0 +1,68 @@
+"""Confirm only explicit 2027 dates for races already known to Young Peloton."""
+import hashlib
+import re
+from urllib.parse import urlsplit
+from core import Page, extract, normalized, uci_dates, validate
+
+YEAR = '2027'
+CALENDAR = 'https://www.uci.org/api/calendar/upcoming?discipline=ROA&raceCategory=MJ&seasonId=100471&year=2027'
+
+def identity(race):
+    return (normalized(race['name']), race.get('countryCode', ''), {'M':'U19M', 'Ž':'U19W'}.get(race.get('sex'), race.get('sex', '')))
+
+def dates_only(body, content_type, race, url):
+    # The placeholder selects the reader's season; it is never published.
+    target = {**race, 'date': '2027-01-01', 'enddate': '2027-01-01' if race['date'] and race['date'] == race['enddate'] else '2027-01-02'}
+    target['id'] = race['id'] if race['id'].startswith('uci-2027-') else race.get('source2026Id', race['id'])
+    observed = extract(body, content_type, target, url)
+    if not observed or not all(k in observed['fields'] for k in ('date', 'enddate')):
+        return None
+    fields = {k: observed['fields'][k] for k in ('date', 'enddate')}
+    if any(not fields[k].startswith(YEAR + '-') for k in fields):
+        return None
+    validate(fields, target)
+    if observed['fields'].get('state') == 'cancelled':
+        return None
+    if not race['date'].startswith(YEAR):
+        page = Page(body)
+        # Federation IDs alone can be reused. Require the known event name too.
+        if observed['adapter'] != 'schema-event-v1' and not any(normalized(h) == normalized(race['name']) for h in page.headings):
+            return None
+    return {**observed, 'fields': fields}
+
+def edition(race, fields, url, now, uci_id=None):
+    rid = uci_id or 'confirmed-2027-' + hashlib.sha256('|'.join(identity(race)).encode()).hexdigest()[:20]
+    return {**race, **fields, 'id': rid, 'source2026Id': race.get('source2026Id', race['id']),
+            'sourceUrl': url, 'proofUrl': url, 'resultUrl': '', 'bucket': 'confirmed',
+            'state': 'active', 'duplicate': 0, 'sourceUpdatedAt': now, 'updateSourceUrl': url,
+            'status': '2027 dates explicitly published by the official source.',
+            # A date confirmation does not confirm a new season's classification.
+            'levelSymbol': '9' if uci_id else 'A', 'liveLevel': 'uci' if uci_id else None}
+
+def calendar_candidates(payload, races):
+    known = {}
+    for race in races:
+        if race.get('duplicate') or race.get('state') == 'merged' or race.get('sex') not in ('M', 'U19M'):
+            continue
+        known.setdefault(normalized(race['name']), []).append(race)
+    country_codes = dict(ALB='AL', AND='AD', AUT='AT', BEL='BE', BIH='BA', BLR='BY', BUL='BG', CRO='HR', CYP='CY', CZE='CZ', DEN='DK', ESP='ES', EST='EE', FIN='FI', FRA='FR', GBR='GB', GER='DE', GRE='GR', HUN='HU', IRL='IE', ISL='IS', ITA='IT', LAT='LV', LIE='LI', LTU='LT', LUX='LU', MDA='MD', MKD='MK', MLT='MT', MNE='ME', MON='MC', NED='NL', NOR='NO', POL='PL', POR='PT', ROU='RO', RUS='RU', SLO='SI', SMR='SM', SRB='RS', SUI='CH', SVK='SK', SWE='SE', TUR='TR', UKR='UA', KOS='XK')
+    seen = set()
+    for month in payload['items']:
+        for day in month['items']:
+            for event in day['items']:
+                path = event.get('detailsLink', {}).get('url', '')
+                if event.get('continentCode') != 'EUR' or not re.fullmatch(r'/competition-details/2027/ROA/\d+', path) or path in seen:
+                    continue
+                seen.add(path)
+                try:
+                    start, end = uci_dates(event.get('dates', ''))
+                except ValueError:
+                    continue
+                if not start.startswith(YEAR) or not end.startswith(YEAR):
+                    continue
+                # UCI three-letter country codes are stored in our UCI records.
+                matches = [r for r in known.get(normalized(event['name']), []) if r.get('countryCode') == country_codes.get(event.get('country'))]
+                if not matches or len({identity(r) for r in matches}) != 1:
+                    continue
+                race = next((r for r in matches if r['date'].startswith(YEAR)), matches[0])
+                yield race, 'https://www.uci.org' + path, 'uci-2027-' + path.rsplit('/', 1)[1]

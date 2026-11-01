@@ -1,3 +1,15 @@
+## 2027 date-confirmation scope (1 November 2026)
+
+The daily job now seeks explicit **2027 dates of known races only**. It keeps all 2026 archive records and previously published overrides intact. It changes only the date pair for an existing 2027 edition; new confirmed editions are stored separately in `overrides.json.confirmed2027` and loaded by the 2027 list, map and detail pages.
+
+The supported federation/Schema.org readers check existing primary source URLs for an explicit 2027 date. The public UCI 2027 MJ calendar also locates new detail URLs for known names and countries. A UCI detail must confirm Men Junior and a supported junior class; championship-wide envelopes are not treated as junior race dates. No new unrelated races are discovered. Unsupported pages, PDFs, changed URLs outside the UCI calendar and ambiguous identities still need a reader or review. An unavailable source does not delete records or erase dates.
+
+Dates are never inferred from 2026 or from the year in a URL. One-day dates may supply the end date only for a known one-day event. Names/country/category identities prevent duplicate editions. New non-UCI editions have an unverified 2027 level; a date confirmation alone does not establish classification. Existing approximate map locations carry over as requested, not as confirmed start coordinates.
+
+The first confirmed read can establish a 2027 date; subsequent changes update the same edition and audit history. Reader version 2 forces a fresh fetch after this upgrade rather than reusing old 304 baselines. The existing 04:17 UTC daily GitHub Actions schedule and data-only publishing branch are retained.
+
+---
+
 # Daily official-source monitoring
 
 The `Daily race source sync` workflow runs at **04:17 UTC daily** (05:17 Ljubljana in winter, 06:17 in summer), on relevant main-branch code changes, and manually from Actions. GitHub schedules are best-effort, not a precise-time SLA. The calendar displays an overdue warning after 48 hours without a published report. GitHub can disable schedules on public repositories after 60 days without activity; monitor the report timestamp and re-enable the workflow if necessary.

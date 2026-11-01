@@ -1,8 +1,10 @@
 import {afterEach,describe,it,expect,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
-vi.mock('./source-updates',()=>({loadSourceUpdates:vi.fn(async()=>null),applySourceUpdates:(r:unknown)=>r}));
+vi.mock('./source-updates',async(importOriginal)=>({...await importOriginal<typeof import('./source-updates')>(),loadSourceUpdates:vi.fn(async()=>null)}));
+import {loadSourceUpdates} from './source-updates';
+import {UCI_2027_RACES} from './uci-2027';
 import {loadU19Race,loadU19Races} from './u19-data';
-afterEach(()=>vi.unstubAllGlobals());
+afterEach(()=>{vi.unstubAllGlobals();vi.mocked(loadSourceUpdates).mockResolvedValue(null);});
 describe('season and detail loading',()=>{
  it('loads 2027 without fetching the 2026 archive',async()=>{
   const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
@@ -11,6 +13,14 @@ describe('season and detail loading',()=>{
   expect(fetcher).not.toHaveBeenCalled();
   expect((await loadU19Race('uci-2027-80539'))?.date).toBe('2027-02-28');
   expect(fetcher).not.toHaveBeenCalled();
+ });
+ it('loads newly confirmed editions, counts and detail without the archive',async()=>{
+  const fresh={...UCI_2027_RACES[0]!,id:'confirmed-2027-1234567890abcdef1234',name:'Another known race',source2026Id:'old-id',sourceUpdatedAt:'2026-11-01T00:00:00Z'};
+  vi.mocked(loadSourceUpdates).mockResolvedValue({schemaVersion:1,races:{},confirmed2027:{[fresh.id]:fresh}});
+  const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+  const data=await loadU19Races(undefined,undefined,2027);
+  expect(data.races).toHaveLength(70);expect(data.manifest.uniqueVisibleRecords).toBe(70);
+  expect(await loadU19Race(fresh.id)).toEqual(fresh);expect(fetcher).not.toHaveBeenCalled();
  });
  it('loads one 2026 detail from exactly one archive part with its original rank',async()=>{
   const fetcher=vi.fn(async(url:string)=>({ok:true,json:async()=>JSON.parse(readFileSync('public'+url,'utf8'))}));

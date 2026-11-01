@@ -1,5 +1,5 @@
 import { describe,it,expect } from 'vitest';
-import { applySourceUpdates } from './source-updates';
+import { applySourceUpdates, mergeConfirmed2027 } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
 import { getRaceLevel } from './race-level';
 const race = UCI_2027_RACES[0]!;
@@ -17,5 +17,23 @@ describe('verified source overlays',()=>{
  });
  it('accepts cancellation but never deletes an event',()=>{
   const result=applySourceUpdates([race],payload({state:'cancelled'}));expect(result).toHaveLength(1);expect(result[0]!.state).toBe('cancelled');
+ });
+});
+
+describe('confirmed 2027 editions',()=>{
+ it('adds an edition once and retains the 2026 record',()=>{
+  const old={...race,id:'old-id',date:'2026-02-28',enddate:'2026-02-28'};
+  const fresh={...race,id:'confirmed-2027-1234567890abcdef1234',source2026Id:old.id,sourceUpdatedAt:'2026-11-01T00:00:00Z'};
+  const feed={schemaVersion:1,confirmed2027:{[fresh.id]:fresh}};
+  const result=mergeConfirmed2027([old],feed);
+  expect(result).toHaveLength(2);expect(result[0]).toEqual(old);
+  expect(mergeConfirmed2027(result,feed)).toHaveLength(2);
+  expect(mergeConfirmed2027([race],feed)).toHaveLength(1);
+ });
+ it('rejects missing, invalid or wrong-year dates',()=>{
+  const fresh={...race,id:'confirmed-2027-1234567890abcdef1234',source2026Id:'old-id',sourceUpdatedAt:'2026-11-01T00:00:00Z'};
+  for(const patch of [{date:''},{date:'2026-02-28'},{enddate:'2027-02-30'},{lat:1000}]) {
+   expect(mergeConfirmed2027([],{schemaVersion:1,confirmed2027:{[fresh.id]:{...fresh,...patch}}})).toHaveLength(0);
+  }
  });
 });

@@ -1,4 +1,4 @@
-import { applySourceUpdates, loadSourceUpdates } from './source-updates';
+import { applySourceUpdates, loadSourceUpdates, mergeConfirmed2027 } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
 import type { ExcelLevelSymbol } from './race-level-data';
@@ -17,7 +17,7 @@ export type U19Race = {
   /** Imported 2026 Excel tier; not part of the original archive row data. */
   levelSymbol?: ExcelLevelSymbol;
   liveLevel?: 'uci' | 'national' | 'regional';
-  uciClass?: string; sourceUpdatedAt?: string; updateSourceUrl?: string;
+  source2026Id?: string; uciClass?: string; sourceUpdatedAt?: string; updateSourceUrl?: string;
 };
 export type RaceManifest = {
   year: number; asOf: string; sourceMeta: { total: number; cancelled: number; complete: boolean };
@@ -101,14 +101,16 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
     base={manifest:data.manifest,races:year===2026?data.races:[...data.races,...UCI_2027_RACES]};
   }
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
-  const races=applySourceUpdates(base.races,await updates).map(r=>({...r}));
+  const payload=await updates;
+  const races=applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
+  if(year===2027) base.manifest={...base.manifest,rawEuropeanRecords:races.length,uniqueVisibleRecords:races.filter(visibleRace).length,sourceMeta:{...base.manifest.sourceMeta,total:races.length,cancelled:races.filter(r=>r.state==='cancelled').length}};
   races.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
   return {manifest:base.manifest,races};
 }
 
 /** A detail page needs one lookup shard and one archive part, never all 54. */
 export async function loadU19Race(id:string, signal?:AbortSignal):Promise<U19Race|null> {
-  if(id.startsWith('uci-2027-')) {
+  if(id.startsWith('uci-2027-') || id.startsWith('confirmed-2027-')) {
     const {races}=await loadU19Races(undefined,signal,2027);
     return races.find(r=>r.id===id)||null;
   }

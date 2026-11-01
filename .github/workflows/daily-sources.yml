@@ -30,7 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/source-sync/publish.py restore
-      - name: Check every distinct stored source
+      - name: Check stored sources for confirmed 2027 dates
         run: python scripts/source-sync/run.py --workers 12
       - name: Publish verified changes and audit history
         env:

@@ -37,6 +37,30 @@ export function applySourceUpdates(races: U19Race[], payload: unknown): U19Race[
   });
 }
 
+/** Add only complete, explicitly dated 2027 editions from the verified feed. */
+export function mergeConfirmed2027(races: U19Race[], payload: unknown): U19Race[] {
+  const data = payload as {schemaVersion?:number; confirmed2027?:Record<string,U19Race>};
+  if (!data || data.schemaVersion !== 1 || !data.confirmed2027 || typeof data.confirmed2027 !== 'object') return races;
+  const key = (r:U19Race) => [r.name.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' '),r.countryCode,({M:'U19M','Ž':'U19W'} as Record<string,string>)[r.sex] || r.sex].join('|');
+  const result = [...races];
+  const ids = new Set(races.map(r=>r.id));
+  const identities = new Set(races.filter(r=>r.date.startsWith('2027-')).map(key));
+  for (const [id,r] of Object.entries(data.confirmed2027)) {
+    if (!r || typeof r !== 'object' || r.id !== id || !/^(uci-2027-\d+|confirmed-2027-[a-f0-9]{20})$/.test(id) || ids.has(id)) continue;
+    const strings = ['name','place','countryCode','country','sex','type','confirmation','status','sourceUrl','proofUrl','resultUrl','bucket','state','precision','region','source2026Id','sourceUpdatedAt'] as const;
+    if (strings.some(k=>typeof r[k] !== 'string' || r[k]!.length>1000 || /[<>\u0000-\u0008]/.test(r[k]!))) continue;
+    if (!r.name || !/^[A-Z]{2}$/.test(r.countryCode) || !/^https?:\/\//.test(r.sourceUrl) || !isDate(r.date) || !isDate(r.enddate)
+      || !r.date.startsWith('2027-') || !r.enddate.startsWith('2027-') || r.date>r.enddate
+      || Date.parse(r.enddate)-Date.parse(r.date)>31*86400000 || Number.isNaN(Date.parse(r.sourceUpdatedAt!))) continue;
+    if (r.state!=='active' || r.duplicate!==0 || r.bucket!=='confirmed' || typeof r.roadUnconfirmed!=='number') continue;
+    if ((r.lat!==null && (typeof r.lat!=='number' || !Number.isFinite(r.lat) || Math.abs(r.lat)>90))
+      || (r.lon!==null && (typeof r.lon!=='number' || !Number.isFinite(r.lon) || Math.abs(r.lon)>180))) continue;
+    if (identities.has(key(r))) continue;
+    result.push({...r}); ids.add(id); identities.add(key(r));
+  }
+  return result;
+}
+
 const CACHE_KEY = 'yp-source-overrides-v1';
 function cachedUpdates(): unknown {
   try { return typeof window === 'undefined' ? null : JSON.parse(window.localStorage.getItem(CACHE_KEY) || 'null'); }

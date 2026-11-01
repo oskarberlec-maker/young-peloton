@@ -143,7 +143,7 @@ function Index(){
   const filtered=useMemo(()=>{
     const q=query.trim().toLocaleLowerCase();
     return races.filter(r=>{
-      if(year===2027 ? !r.id.startsWith('uci-2027-') : r.id.startsWith('uci-2027-'))return false;
+      if(year===2027 ? !r.date.startsWith('2027-') : r.date.startsWith('2027-'))return false;
       if(linkedRace)return r.id===linkedRace;
       if(!showArchived&&!visibleRace(r))return false;
       if(savedOnly&&!saved.includes(r.id))return false;
@@ -219,7 +219,7 @@ function Index(){
           <select id="season" className="rounded-md border bg-background px-3 py-2" value={year} onChange={e=>{setYear(Number(e.target.value));setFrom('');setTo('');resetPage();}}>
             <option value={2026}>2026 archive</option><option value={2027}>2027 upcoming season</option>
           </select>
-          {year===2027&&<span role="status" className="text-sm text-amber-800">European U19 men’s UCI races with published 2027 dates.</span>}
+          {year===2027&&<span role="status" className="text-sm text-amber-800">Known European races with officially published 2027 dates.</span>}
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
@@ -289,12 +289,12 @@ function Index(){
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}</div>
             </article>)}
           </div>
-          {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates are published in the official UCI calendar, checked 28 October 2026, and may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
+          {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
           {filtered.length===0&&<p className="rounded-xl border border-border p-10 text-center text-muted-foreground">No races match these filters. Try a different date, country or verification status.</p>}
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}
         <aside className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The {year} source snapshot was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline 2026 race levels follow the Young Peloton classification workbook; 2027 levels follow the official UCI calendar; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
+          <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The {year} source snapshot was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline 2026 race levels follow the Young Peloton classification workbook; 2027 UCI levels follow the official UCI calendar; other 2027 levels remain unverified; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
         </aside>
       </>}
     </div>

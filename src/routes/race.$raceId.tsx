@@ -11,7 +11,7 @@ export const Route=createFileRoute('/race/$raceId')({
 function RacePage(){
  const {raceId}=Route.useParams();
  const {returnTo}=Route.useSearch();
- const calendarUrl=returnTo || (raceId.startsWith('uci-2027-')?'/?year=2027':'/');
+ const calendarUrl=returnTo || ((raceId.startsWith('uci-2027-') || raceId.startsWith('confirmed-2027-'))?'/?year=2027':'/');
  const [race,setRace]=useState<U19Race|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
@@ -38,7 +38,7 @@ function RacePage(){
  {race.sourceUpdatedAt&&<div><dt className="text-sm text-muted-foreground">Last automatic correction</dt><dd>{new Date(race.sourceUpdatedAt).toLocaleString('en-GB')}</dd>{safeUrl(race.updateSourceUrl)&&<a className="text-sky-700 underline" href={race.updateSourceUrl} target="_blank" rel="noopener noreferrer">Verified change source</a>}</div>}
  <div><dt className="text-sm text-muted-foreground">Status</dt><dd>{race.state}</dd></div>
  </dl>
- <p className="rounded-lg border p-4 text-sm">{race.id.startsWith('uci-2027-')?'The 2027 competition level comes from the official UCI junior calendar.':'Competition levels were imported from the 2026 Young Peloton race-classification workbook.'} Not every linked source has been checked live. Entry deadline, race distance, elevation gain and start coordinates: not independently verified in this dataset. Please consult the official organizer. Being listed does not guarantee eligibility or that this event takes place.</p>
+ <p className="rounded-lg border p-4 text-sm">{race.id.startsWith('uci-2027-')?'The 2027 competition level comes from the official UCI junior calendar.':race.id.startsWith('confirmed-2027-')?'The official source confirms the 2027 date. The 2027 competition level has not yet been verified.':'Competition levels were imported from the 2026 Young Peloton race-classification workbook.'} Not every linked source has been checked live. Entry deadline, race distance, elevation gain and start coordinates: not independently verified in this dataset. Please consult the official organizer. Being listed does not guarantee eligibility or that this event takes place.</p>
  <div className="flex flex-wrap gap-4">{safeUrl(race.sourceUrl)&&<a className="text-sky-700 underline" href={race.sourceUrl} target="_blank" rel="noopener noreferrer">Original source</a>}{safeUrl(race.proofUrl)&&<a className="text-sky-700 underline" href={race.proofUrl} target="_blank" rel="noopener noreferrer">Eligibility evidence</a>}</div>
  <a className="text-sky-700 underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect information</a>
  </>}

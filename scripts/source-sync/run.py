@@ -16,7 +16,8 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urljoin
-from core import transport_url, canonical, extract, validate, changes_from_previous, Page
+from confirmations import dates_only, edition, identity, calendar_candidates, CALENDAR
+from core import transport_url, canonical, normalized, Page
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -110,6 +111,8 @@ def run(args):
     overlay = json.loads(json.dumps(old_overlay))
     history = read_json(out / 'history.json', {'changes': []})
     races = load_races()
+    confirmed = overlay.setdefault('confirmed2027', {})
+    races += [r for rid, r in confirmed.items() if rid not in {x['id'] for x in races}]
     by_id = {r['id']: {**r, **overlay['races'].get(r['id'], {}).get('fields', {})} for r in races}
     registry = {}
     invalid = []
@@ -146,6 +149,7 @@ def run(args):
     fetcher = Fetcher()
     state = {'schemaVersion': 1, 'sources': dict(previous.get('sources', {}))}
     proposed = []
+    new_editions = []
     counts = {'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
     review = []
     fixtures = Path(args.fixtures) if args.fixtures else None
@@ -160,7 +164,8 @@ def run(args):
                     raise ValueError('No test fixture for source')
                 result = {'body': fixture.read_bytes(), 'contentType': 'text/html', 'finalUrl': url, 'redirectedHost': False, 'httpStatus': 200}
             else:
-                result = fetcher.get(url, prev)
+                # Re-read after the reader upgrade even when the source's ETag is unchanged.
+                result = fetcher.get(url, prev if prev.get('readerVersion') == 2 else {})
             if result.get('notModified'):
                 # 304 means the previous successful representation is still current,
                 # not that an unsupported page has suddenly been parsed.
@@ -187,18 +192,17 @@ def run(args):
                 for rid in sorted(registry[url]['primary']):
                     race = by_id[rid]
                     try:
-                        observed = extract(decoded, result['contentType'], race, url)
+                        observed = dates_only(decoded, result['contentType'], race, url)
                         if observed:
-                            fields = validate(observed['fields'], race)
+                            fields = observed['fields']
                             supported += 1
                             old = prev.get('observations', {}).get(rid)
-                            if old and set(old['fields']) - set(fields):
-                                parse_errors.append({'raceId': rid, 'reason': 'Previously readable fields disappeared'})
-                            delta = changes_from_previous(old.get('fields') if old else None, fields, race)
-                            if delta:
-                                # Validate the merged result, not just changed fields.
-                                validate({**{k:v for k,v in fields.items() if k in ('date','enddate')}, **delta}, race)
-                                updates.append({'raceId': rid, 'fields': delta, 'sourceUrl': url, 'adapter': observed['adapter'], 'previousFields': old['fields']})
+                            if race['date'].startswith('2027'):
+                                delta = {k: v for k, v in fields.items() if race.get(k) != v}
+                                if delta:
+                                    updates.append({'raceId': rid, 'fields': fields, 'sourceUrl': url, 'adapter': observed['adapter'], 'previousFields': old['fields'] if old else {k:race[k] for k in fields}})
+                            else:
+                                updates.append({'newEdition': edition(race, fields, url, now), 'sourceUrl': url, 'adapter': observed['adapter']})
                             observations[rid] = observed
                     except (ValueError, KeyError, TypeError) as e:
                         parse_errors.append({'raceId': rid, 'reason': str(e)[:200]})
@@ -207,7 +211,7 @@ def run(args):
                 # For supported readers, actual field changes are the meaningful signal.
                 changed = bool(updates or parse_errors)
             needs_review = bool(parse_errors or result['redirectedHost'] or (changed and not supported) or (prev.get('observations') and not supported) or (prev.get('needsReview') and not supported))
-            record.update(result, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
+            record.update(result, readerVersion=2, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
             for key in ('error',):
                 record.pop(key, None)
             reason = {'sourceUrl': url, 'reason': 'Changed or unparseable source; no speculative update', 'details': parse_errors[:10]} if needs_review else None
@@ -227,9 +231,53 @@ def run(args):
             if issue:
                 counts['needsReview'] += 1
                 review.append(issue)
-            proposed.extend(updates)
+            new_editions.extend(p for p in updates if 'newEdition' in p)
+            proposed.extend(p for p in updates if 'newEdition' not in p)
             if counts['attempted'] % 100 == 0:
                 print(json.dumps(counts), flush=True)
+
+    if not fixtures and not args.limit:
+        try:
+            response = fetcher.get(CALENDAR, {})
+            candidates = list(calendar_candidates(json.loads(response['body']), races))
+            for known, url, rid in candidates:
+                if rid in by_id:
+                    continue  # Existing editions were checked through their own source above.
+                try:
+                    result = fetcher.get(url, {})
+                    if result.get('redirectedHost'):
+                        raise ValueError('Competition source redirected')
+                    body = result['body'].decode('utf-8')
+                    details = Page(body).props.get('CompetitionDetailsModule', {}).get('competitionDetails', {})
+                    if normalized(details.get('name', '')) != normalized(known['name']):
+                        raise ValueError('Competition name does not match known race')
+                    target = {**known, 'id': rid, 'date': '2027-01-01', 'enddate': '2027-01-01'}
+                    observed = dates_only(body, result['contentType'], target, url)
+                    if observed:
+                        new_editions.append({'newEdition': edition(known, observed['fields'], url, now, rid), 'sourceUrl': url, 'adapter': 'uci-competition-v1'})
+                except Exception as e:
+                    review.append({'sourceUrl': url, 'reason': str(e)[:250]})
+            counts['calendarChecked'] = True
+        except Exception as e:
+            counts['calendarChecked'] = False
+            review.append({'sourceUrl': CALENDAR, 'reason': str(e)[:250]})
+
+    existing_identities = {identity(r) for r in races if r['date'].startswith('2027')}
+    added = 0
+    for item in new_editions:
+        race = item['newEdition']
+        if identity(race) in existing_identities:
+            continue
+        # Ambiguous archive identities need review instead of merging distinct races.
+        originals = {r['id'] for r in races if not r['date'].startswith('2027') and identity(r) == identity(race) and not r.get('duplicate') and r.get('state') != 'merged'}
+        if len(originals) > 1:
+            review.append({'sourceUrl': item['sourceUrl'], 'reason': 'Ambiguous known race identity; 2027 edition not added'})
+            continue
+        confirmed[race['id']] = race
+        existing_identities.add(identity(race))
+        added += 1
+        history['changes'].append({'at': now, 'raceId': race['id'], 'sourceUrl': item['sourceUrl'], 'adapter': item['adapter'], 'before': None, 'after': race})
+    counts['confirmed2027Added'] = added
 
     # A source-wide template change should not rewrite many races at once.
     from collections import Counter
@@ -261,9 +309,10 @@ def run(args):
             merged.update(lat=None, lon=None, precision='')
         overlay['races'][rid] = {'fields': merged, 'updatedAt': now, 'sourceUrl': change['sourceUrl'], 'adapter': change['adapter']}
         history['changes'].append({'at': now, 'raceId': rid, 'sourceUrl': change['sourceUrl'], 'adapter': change['adapter'], 'before': before, 'after': change['fields']})
-    counts['updatedRaces'] = len({p['raceId'] for p in proposed})
+    counts['updatedRaces'] = len({p['raceId'] for p in proposed}) + added
+    counts['needsReview'] = len(review)
     # Keep history complete in the data branch (Git also preserves prior snapshots).
-    status = {'schemaVersion': 1, 'lastRunAt': now, 'complete': len(urls) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'note': 'All stored source/proof/result URLs are monitored. Unsupported pages and PDFs are change-detected only; failed sources never alter race data.'}
+    status = {'schemaVersion': 1, 'lastRunAt': now, 'complete': len(urls) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'confirmed dates of known races only', 'note': 'Stored sources are checked for explicit 2027 dates of known races. 2026 records and other fields are preserved. Unsupported pages and PDFs require review; failed sources never alter race data.'}
     overlay['updatedAt'] = now
     for name, data in [('state', state), ('overrides', overlay), ('history', history), ('status', {k:v for k,v in status.items() if k != 'review'}), ('report', status)]:
         (out / (name + '.json')).write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '\n')
