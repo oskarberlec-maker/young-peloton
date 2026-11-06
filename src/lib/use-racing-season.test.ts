@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { act, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useRacingSeason } from './use-racing-season';
 
 beforeEach(() => { cleanup(); window.localStorage.clear(); });
