@@ -44,13 +44,20 @@ def calendar_entries(payload):
     for month in payload['items']:
         if not isinstance(month, dict):
             continue
-        for day in month.get('items', []):
+        days = month.get('items')
+        if not isinstance(days, list):
+            continue
+        for day in days:
             if not isinstance(day, dict):
                 continue
-            for event in day.get('items', []):
+            events = day.get('items')
+            if not isinstance(events, list):
+                continue
+            for event in events:
                 if not isinstance(event, dict) or event.get('continentCode') != 'EUR':
                     continue
-                path = event.get('detailsLink', {}).get('url', '')
+                link = event.get('detailsLink')
+                path = link.get('url', '') if isinstance(link, dict) else ''
                 match = UCI_PATH.fullmatch(path) if isinstance(path, str) else None
                 if not match:
                     continue
@@ -117,11 +124,12 @@ def confirmed_uci_detail(body, candidate):
     klass = str(details.get('competitionClass', '')).split(' - ')[0]
     if klass not in UCI_CLASSES:
         return None
-    schedule = props.get('schedule', {}).get('items', [])
+    schedule_data = props.get('schedule')
+    schedule = schedule_data.get('items', []) if isinstance(schedule_data, dict) else []
     categories = {
-        race.get('category')
-        for day in schedule if isinstance(day, dict)
-        for race in day.get('races', []) if isinstance(race, dict)
+        race['category']
+        for day in schedule if isinstance(day, dict) and isinstance(day.get('races'), list)
+        for race in day['races'] if isinstance(race, dict) and isinstance(race.get('category'), str)
     }
     if categories and 'Men Junior' not in categories:
         return None
