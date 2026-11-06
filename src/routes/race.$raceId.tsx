@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { Bookmark } from 'lucide-react';
+import { useRacingSeason } from '@/lib/use-racing-season';
 import { loadU19Race, niceDate, countryLabel, safeUrl, type U19Race } from '@/lib/u19-data';
 import { englishCategory,englishRaceType,englishConfirmation } from '@/lib/u19-english';
 import { getRaceLevel } from '@/lib/race-level';
@@ -10,6 +12,7 @@ export const Route=createFileRoute('/race/$raceId')({
 });
 function RacePage(){
  const {raceId}=Route.useParams();
+ const {saved,toggle,error:saveError}=useRacingSeason();
  const {returnTo}=Route.useSearch();
  const calendarUrl=returnTo || ((raceId.startsWith('uci-2027-') || raceId.startsWith('confirmed-2027-'))?'/?year=2027':'/');
  const [race,setRace]=useState<U19Race|null>(null);
@@ -29,6 +32,8 @@ function RacePage(){
  {!loading&&!error&&!race&&<h1 className="text-3xl font-bold">Race not found</h1>}
  {race&&<><p className="text-sm font-semibold text-sky-700">{niceDate(race.date)}{race.enddate&&race.enddate!==race.date?' – '+niceDate(race.enddate):''}</p>
  <h1 className="text-4xl font-extrabold">{race.name}</h1>
+ <div className="flex flex-wrap items-center gap-3"><button type="button" className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold hover:bg-slate-50" onClick={()=>void toggle(race.id,race.date.startsWith("2027-")?2027:2026)}><Bookmark size={16}/>{saved.includes(race.id)?"Saved on this device":"Save on this device"}</button><Link to="/season" className="text-sm text-sky-700 underline">View saved races</Link></div>
+ {saveError&&<p role="alert" className="text-sm text-red-700">{saveError}</p>}
  <p>{race.place||'Venue not specified'} · {countryLabel(race.countryCode,race.country)}</p>
  <dl className="grid gap-4 rounded-xl border p-5 sm:grid-cols-2">
  <div><dt className="text-sm text-muted-foreground">Eligibility</dt><dd>{englishConfirmation(race.confirmation)||'Not confirmed'}</dd></div>
