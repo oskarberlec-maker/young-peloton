@@ -291,13 +291,15 @@ def run(args):
 
     existing_identities = {identity(r) for r in races if r['date'].startswith('2027')}
     added = 0
-    for item in new_editions:
+    # Prefer official UCI competition IDs when both a federation page and
+    # the UCI calendar identify the same 2027 edition.
+    for item in sorted(new_editions, key=lambda x: (not x['newEdition']['id'].startswith('uci-2027-'), x['newEdition']['id'])):
         race = item['newEdition']
         if identity(race) in existing_identities:
             continue
         # Ambiguous archive identities need review instead of merging distinct races.
         originals = {r['id'] for r in races if not r['date'].startswith('2027') and identity(r) == identity(race) and not r.get('duplicate') and r.get('state') != 'merged'}
-        if len(originals) > 1:
+        if len(originals) > 1 and not race['id'].startswith('uci-2027-'):
             review.append({'sourceUrl': item['sourceUrl'], 'reason': 'Ambiguous known race identity; 2027 edition not added'})
             continue
         confirmed[race['id']] = race
