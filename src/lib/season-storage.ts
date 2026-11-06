@@ -9,8 +9,8 @@ export function readLocalSavedIds(): string[] {
   try { return safeSavedIds(JSON.parse(localStorage.getItem(LOCAL_RACES_KEY) || '[]')); }
   catch { return []; }
 }
-export function writeLocalSavedIds(ids: string[]): void {
-  if (typeof window === 'undefined') return;
-  try { localStorage.setItem(LOCAL_RACES_KEY, JSON.stringify(safeSavedIds(ids))); }
-  catch { /* Browser storage can be disabled. */ }
+export function writeLocalSavedIds(ids: string[]): boolean {
+  if (typeof window === 'undefined') return false;
+  try { localStorage.setItem(LOCAL_RACES_KEY, JSON.stringify(safeSavedIds(ids))); return true; }
+  catch { return false; }
 }
