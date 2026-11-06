@@ -5,6 +5,8 @@ export type SourceSyncStatus = {
   schemaVersion: number; lastRunAt: string; complete: boolean;
   totalSources: number; attempted: number; successful: number; errors: number;
   supportedSources: number; changedSources: number; needsReview: number; updatedRaces: number;
+  calendarCandidates2027?: number; calendarVerified2027?: number; calendarNewCandidates2027?: number;
+  confirmed2027Added?: number;
 };
 type Override = { fields: Partial<U19Race>; updatedAt: string; sourceUrl: string; adapter: string };
 const fields = new Set(['date','enddate','name','place','type','state','liveLevel','uciClass','lat','lon','precision']);
