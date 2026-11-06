@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
 import { RaceMonthCalendar } from '@/components/RaceMonthCalendar';
+import { InstallAppButton } from '@/components/InstallAppButton';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
 import { getRaceLevel, LEVEL_OPTIONS, type RaceLevel } from '@/lib/race-level';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
@@ -178,10 +179,11 @@ function Index(){
             <span className="mt-1 text-[9px] font-bold tracking-[0.22em] text-slate-500">EUROPEAN JUNIOR RACING</span>
           </span>
         </Link>
-        <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm sm:gap-2">
+        <nav aria-label="Primary" className="ml-auto flex flex-wrap items-center gap-1 text-sm sm:gap-2">
           <button type="button" onClick={()=>jump('calendar')} className={tab==='calendar'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Races</button>
           <button type="button" onClick={()=>jump('month')} className={tab==='month'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Calendar</button>
           <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Map</button>
+          <InstallAppButton />
           <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">Saved ({saved.length}) <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
         </nav>
       </div>
