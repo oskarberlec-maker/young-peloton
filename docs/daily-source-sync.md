@@ -1,3 +1,13 @@
+## 2027 ID-based discovery (6 November 2026)
+
+Every scheduled scan still checks all stored source/proof/result links for changes, and known official event records are checked for explicit 2027 dates. In addition, the scan now enumerates **every European Men Junior road competition ID** from the official UCI 2027 MJ calendar, including races that were **not listed in the 2026 archive**. For each new UCI competition ID it downloads the linked detail page and only publishes when the name, 2027 dates, competition class and category evidence agree with the calendar. Unrelated events, unsupported classes, contradictory dates and missing detail data are held for review. URL year alone is never proof.
+
+Existing 2027 UCI IDs receive confirmed date corrections from the same authoritative calendar + detail pair. New UCI IDs are stable entries in `overrides.json.confirmed2027`; when name, country and junior category match exactly one archived 2026 race, its ID and approximate coordinates are carried forward. Otherwise the new race still appears under **2027** with a country-level **amber map marker**, not a guessed precise start location. The 2026 archive remains unchanged. All published editions are de-duplicated against existing UCI records and previously confirmed 2027 editions.
+
+The public `status.json` also exposes `calendarCandidates2027`, `calendarVerified2027` and `calendarNewCandidates2027`. All updates remain transparent in `history.json`. Only sources with an unambiguous event identity and explicit 2027 confirmation are auto-published; unsupported websites/PDFs still require additional readers or manual verification.
+
+---
+
 ## 2027 date-confirmation scope (1 November 2026)
 
 The daily job now seeks explicit **2027 dates of known races only**. It keeps all 2026 archive records and previously published overrides intact. It changes only the date pair for an existing 2027 edition; new confirmed editions are stored separately in `overrides.json.confirmed2027` and loaded by the 2027 list, map and detail pages.
