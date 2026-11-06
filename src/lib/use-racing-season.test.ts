@@ -1,23 +1,36 @@
-import {beforeEach,describe,it,expect,vi} from 'vitest';
-import {renderHook,waitFor,cleanup} from '@testing-library/react';
-const auth=vi.hoisted(()=>({getUser:vi.fn(),onAuthStateChange:vi.fn(()=>({data:{subscription:{unsubscribe:vi.fn()}}}))}));
-// Use a stable client just like production, so effect dependencies remain stable.
-const client=vi.hoisted(()=>({auth}));
-vi.mock('./supabase-client',()=>({seasonDatabase:()=>client}));
-import {useRacingSeason} from './use-racing-season';
-beforeEach(()=>{cleanup();localStorage.clear();});
-describe('guest authentication',()=>{
- it('loads the local season without showing an error for a missing session',async()=>{
-  localStorage.setItem('young-peloton-saved-races',JSON.stringify(['uci-2027-80539']));
-  auth.getUser.mockResolvedValue({data:{user:null},error:{name:'AuthSessionMissingError',message:'Auth session missing!'}});
-  const {result}=renderHook(()=>useRacingSeason());
-  await waitFor(()=>expect(result.current.ready).toBe(true));
-  expect(result.current.error).toBe('');expect(result.current.saved).toEqual(['uci-2027-80539']);
- });
- it('still shows genuine authentication failures',async()=>{
-  auth.getUser.mockResolvedValue({data:{user:null},error:{name:'AuthApiError',message:'Server unavailable'}});
-  const {result}=renderHook(()=>useRacingSeason());
-  await waitFor(()=>expect(result.current.ready).toBe(true));
-  expect(result.current.error).toBe('Server unavailable');
- });
+// @vitest-environment jsdom
+import { act, beforeEach, describe, expect, it } from 'vitest';
+import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { useRacingSeason } from './use-racing-season';
+
+beforeEach(() => { cleanup(); window.localStorage.clear(); });
+
+describe('device-only saved race bookmarks', () => {
+  it('loads the existing local bookmarks without an account or network session', async () => {
+    localStorage.setItem('young-peloton-saved-races', JSON.stringify(['uci-2027-80539']));
+    const {result} = renderHook(() => useRacingSeason());
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.error).toBe('');
+    expect(result.current.saved).toEqual(['uci-2027-80539']);
+  });
+
+  it('saves and removes races using local browser storage', async () => {
+    const {result} = renderHook(() => useRacingSeason());
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => { await result.current.toggle('uci-2027-81168', 2027); });
+    expect(result.current.saved).toEqual(['uci-2027-81168']);
+    expect(JSON.parse(localStorage.getItem('young-peloton-saved-races') || '[]')).toEqual(['uci-2027-81168']);
+    await act(async () => { await result.current.toggle('uci-2027-81168', 2027); });
+    expect(result.current.saved).toEqual([]);
+  });
+
+  it('imports without duplicates and clears all device bookmarks', async () => {
+    const {result} = renderHook(() => useRacingSeason());
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    await act(async () => { result.current.importIds(['race-1','race-1','race-2']); });
+    expect(result.current.saved).toEqual(['race-1','race-2']);
+    await act(async () => { await result.current.clearAll(); });
+    expect(result.current.saved).toEqual([]);
+    expect(result.current.error).toBe('');
+  });
 });
