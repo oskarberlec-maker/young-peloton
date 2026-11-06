@@ -16,7 +16,8 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urljoin
-from confirmations import dates_only, edition, identity, calendar_candidates, CALENDAR
+from confirmations import dates_only, edition, identity, CALENDAR
+from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import transport_url, canonical, normalized, Page
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -125,10 +126,13 @@ def run(args):
             except ValueError:
                 invalid.append({'raceId': r['id'], 'field': field})
                 continue
-            entry = registry.setdefault(url, {'races': set(), 'primary': set()})
+            entry = registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
             entry['races'].add(r['id'])
-            if field == 'sourceUrl' and r.get('state') != 'merged' and not r.get('duplicate'):
-                entry['primary'].add(r['id'])
+            if r.get('state') != 'merged' and not r.get('duplicate'):
+                if field == 'sourceUrl':
+                    entry['primary'].add(r['id'])
+                else:
+                    entry['secondary'].add(r['id'])
     # Interleave hosts so thousands of one federation's pages don't block all workers.
     from collections import defaultdict, deque
     groups = defaultdict(deque)
@@ -189,7 +193,11 @@ def run(args):
             if not result['redirectedHost']:
                 # Shared calendar URLs cannot safely identify individual subraces
                 # unless the reader itself verifies a stable ID.
-                for rid in sorted(registry[url]['primary']):
+                # Result and eligibility links may also publish structured 2027
+                # editions. Only process secondary URLs with explicit Schema.org
+                # data; broad result lists and plain-text year mentions do not qualify.
+                secondary = (registry[url]['secondary'] - registry[url]['primary']) if ('2027' in decoded and 'application/ld+json' in decoded.lower()) else set()
+                for rid in sorted(registry[url]['primary'] | secondary):
                     race = by_id[rid]
                     try:
                         observed = dates_only(decoded, result['contentType'], race, url)
@@ -239,24 +247,50 @@ def run(args):
     if not fixtures and not args.limit:
         try:
             response = fetcher.get(CALENDAR, {})
-            candidates = list(calendar_candidates(json.loads(response['body']), races))
-            for known, url, rid in candidates:
-                if rid in by_id:
-                    continue  # Existing editions were checked through their own source above.
+            candidates = calendar_entries(json.loads(response['body']))
+            counts['calendarCandidates2027'] = len(candidates)
+            counts['calendarVerified2027'] = 0
+            counts['calendarNewCandidates2027'] = 0
+            for candidate in candidates:
+                rid = candidate['id']
+                if rid not in by_id:
+                    counts['calendarNewCandidates2027'] += 1
                 try:
-                    result = fetcher.get(url, {})
+                    result = fetcher.get(candidate['sourceUrl'], {})
                     if result.get('redirectedHost'):
-                        raise ValueError('Competition source redirected')
-                    body = result['body'].decode('utf-8')
-                    details = Page(body).props.get('CompetitionDetailsModule', {}).get('competitionDetails', {})
-                    if normalized(details.get('name', '')) != normalized(known['name']):
-                        raise ValueError('Competition name does not match known race')
-                    target = {**known, 'id': rid, 'date': '2027-01-01', 'enddate': '2027-01-01'}
-                    observed = dates_only(body, result['contentType'], target, url)
-                    if observed:
-                        new_editions.append({'newEdition': edition(known, observed['fields'], url, now, rid), 'sourceUrl': url, 'adapter': 'uci-competition-v1'})
+                        raise ValueError('UCI competition detail redirected to a different resource')
+                    if result.get('contentType') != 'text/html':
+                        raise ValueError('UCI competition detail did not provide HTML')
+                    detail = confirmed_uci_detail(result['body'].decode('utf-8', errors='replace'), candidate)
+                    if not detail:
+                        raise ValueError('UCI Men Junior calendar and competition detail do not agree on name, date, category or class')
+                    counts['calendarVerified2027'] += 1
+                    if rid in by_id:
+                        # Exact UCI competition ID resolves the edition even if its name
+                        # changed; do not silently rewrite a whole event from a calendar.
+                        race = by_id[rid]
+                        if not race['date'].startswith('2027-'):
+                            review.append({'sourceUrl': candidate['sourceUrl'], 'reason': 'Existing UCI ID belongs to a different year'})
+                            continue
+                        fields = {'date': detail['date'], 'enddate': detail['enddate']}
+                        if all(race.get(key) == value for key, value in fields.items()):
+                            continue
+                        already = [p for p in proposed if p['raceId'] == rid]
+                        if already:
+                            if any(p['fields'].get('date') != fields['date'] or p['fields'].get('enddate') != fields['enddate'] for p in already):
+                                review.append({'sourceUrl': candidate['sourceUrl'], 'reason': 'Contradictory UCI updates for one competition ID'})
+                            continue
+                        proposed.append({'raceId': rid, 'fields': fields, 'sourceUrl': candidate['sourceUrl'],
+                                         'adapter': 'uci-competition-v1',
+                                         'previousFields': {key: race.get(key) for key in fields}})
+                        continue
+                    linked = matching_2026_edition(candidate, races)
+                    entry = edition_from_uci_calendar(candidate, detail, now, linked)
+                    new_editions.append({'newEdition': entry, 'sourceUrl': candidate['sourceUrl'],
+                                         'adapter': 'uci-calendar-and-detail-v1'})
                 except Exception as e:
-                    review.append({'sourceUrl': url, 'reason': str(e)[:250]})
+                    review.append({'sourceUrl': candidate['sourceUrl'], 'reason': str(e)[:250],
+                                   'raceId': rid})
             counts['calendarChecked'] = True
         except Exception as e:
             counts['calendarChecked'] = False
@@ -264,13 +298,15 @@ def run(args):
 
     existing_identities = {identity(r) for r in races if r['date'].startswith('2027')}
     added = 0
-    for item in new_editions:
+    # Prefer official UCI competition IDs when both a federation page and
+    # the UCI calendar identify the same 2027 edition.
+    for item in sorted(new_editions, key=lambda x: (not x['newEdition']['id'].startswith('uci-2027-'), x['newEdition']['id'])):
         race = item['newEdition']
         if identity(race) in existing_identities:
             continue
         # Ambiguous archive identities need review instead of merging distinct races.
         originals = {r['id'] for r in races if not r['date'].startswith('2027') and identity(r) == identity(race) and not r.get('duplicate') and r.get('state') != 'merged'}
-        if len(originals) > 1:
+        if len(originals) > 1 and not race['id'].startswith('uci-2027-'):
             review.append({'sourceUrl': item['sourceUrl'], 'reason': 'Ambiguous known race identity; 2027 edition not added'})
             continue
         confirmed[race['id']] = race

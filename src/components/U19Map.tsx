@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { U19Race } from '@/lib/u19-data';
 import { niceDate, safeUrl } from '@/lib/u19-data';
+import { mappedRaceLocation } from '@/lib/country-centres';
 import { englishCategory, englishConfirmation, englishRaceType } from '@/lib/u19-english';
 
 // Use the archived, locally served Leaflet dependencies; no extra npm package is required.
@@ -43,10 +44,11 @@ export function U19Map({races}:{races:U19Race[]}) {
   const locations=useMemo(()=>{
     const grouped = new Map<string,Point>();
     for(const r of races) {
-      if (r.lat==null || r.lon==null || !Number.isFinite(r.lat) || !Number.isFinite(r.lon)) continue;
-      const key=`${r.lat.toFixed(5)}:${r.lon.toFixed(5)}`;
+      const location=mappedRaceLocation(r);
+      if (!location) continue;
+      const key=`${location.lat.toFixed(5)}:${location.lon.toFixed(5)}`;
       let point=grouped.get(key);
-      if(!point){point={lat:r.lat,lon:r.lon,precision:r.precision,place:r.place||r.country,races:[]};grouped.set(key,point);}
+      if(!point){point={lat:location.lat,lon:location.lon,precision:location.precision,place:location.estimated?r.country:(r.place||r.country),races:[]};grouped.set(key,point);}
       point.races.push(r);
     }
     return [...grouped.values()];
@@ -88,13 +90,13 @@ export function U19Map({races}:{races:U19Race[]}) {
   },[locations,ready]);
   useEffect(()=>{setSelected(null);},[races]);
   const listed=selected?.races.slice(0,40)||[];
-  const locatedCount=useMemo(()=>races.filter(r=>r.lat!==null&&r.lon!==null).length,[races]);
+  const locatedCount=useMemo(()=>races.filter(r=>mappedRaceLocation(r)!==null).length,[races]);
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"><span>{locations.length.toLocaleString('en')} mapped places · {locatedCount.toLocaleString('en')} race records with map locations</span><span>Dots show approximate locations, not verified start lines. Amber = country-level only.</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"><span>{locations.length.toLocaleString('en')} mapped places · {locatedCount.toLocaleString('en')} race records with approximate map markers</span><span>Dots show approximate locations, not verified start lines. Amber = country-level only.</span></div>
     {error&&<p role="alert" className="text-red-600">Map unavailable: {error}</p>}
     <div ref={holder} className="h-[440px] md:h-[580px] w-full rounded-xl border border-border bg-muted" aria-label="Map of European U19 race locations" />
     <p className="text-xs text-muted-foreground">Geocoding supplied in the source archive (GeoNames / Natural Earth). Map tiles © OpenStreetMap contributors. Zoom in or select a marker to inspect races at that location.</p>
-    {races.some(r=>r.date.startsWith('2027-'))&&<p className="text-xs text-muted-foreground">2027 markers reuse the same race’s approximate 2026 location; they are not confirmed 2027 start lines. Races without a matching 2026 location are not plotted.</p>}
+    {races.some(r=>r.date.startsWith('2027-'))&&<p className="text-xs text-muted-foreground">Markers use archived approximate locations when available; otherwise 2027 races are placed near the country centre and shown in amber. Neither is a confirmed 2027 starting point.</p>}
     {selected&&<section id="selected-map-location" className="rounded-xl border border-border p-4" aria-live="polite">
       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold">{selected.place} — {selected.races.length} race records</h3><button className="text-sm underline" onClick={()=>setSelected(null)}>Close</button></div>
       {selected.precision==='country'&&<p className="text-amber-700 text-sm">Only a country-level location is known for these records.</p>}
