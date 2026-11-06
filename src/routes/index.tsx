@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
+import { RaceMonthCalendar } from '@/components/RaceMonthCalendar';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
 import { getRaceLevel, LEVEL_OPTIONS, type RaceLevel } from '@/lib/race-level';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
@@ -61,7 +62,7 @@ function Index(){
   const [manifest,setManifest]=useState<RaceManifest|null>(null);
   const [loadStatus,setLoadStatus]=useState('Loading races and original sources…');
   const [loadError,setLoadError]=useState('');
-  const [tab,setTab]=useState<'calendar'|'map'>('calendar');
+  const [tab,setTab]=useState<'calendar'|'month'|'map'>('calendar');
   const [query,setQuery]=useState('');const [countriesSelected,setCountriesSelected]=useState<string[]>([]);
   const [monthsSelected,setMonthsSelected]=useState<string[]>([]);const [categoriesSelected,setCategoriesSelected]=useState<string[]>([]);
   const [statusesSelected,setStatusesSelected]=useState<string[]>(['confirmed']);
@@ -73,7 +74,7 @@ function Index(){
   const [calendarReturnTo,setCalendarReturnTo]=useState('/');
   const [advanced,setAdvanced]=useState(false);
   const [futureOnly,setFutureOnly]=useState(false);
-  const { saved, toggle: toggleSaved, user } = useRacingSeason();
+  const { saved, toggle: toggleSaved, error: saveError } = useRacingSeason();
   const [savedOnly,setSavedOnly]=useState(false);
   const [linkedRace,setLinkedRace]=useState('');
   const [showArchived,setShowArchived]=useState(false);
@@ -81,7 +82,7 @@ function Index(){
   const [pageSize,setPageSize]=useState(PAGE_SIZE);
 
 
-  const jump=(target:'calendar'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
+  const jump=(target:'calendar'|'month'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
   useEffect(()=>{
     const p=new URLSearchParams(window.location.search);
@@ -102,7 +103,7 @@ function Index(){
     if(p.has('from'))setFrom(p.get('from')||'');
     if(p.has('to'))setTo(p.get('to')||'');
     if(p.has('q'))setQuery(p.get('q')||'');
-    setTab(p.get('view')==='map'?'map':'calendar');
+    setTab(p.get('view')==='map'?'map':p.get('view')==='month'?'month':'calendar');
     setFutureOnly(p.get('upcoming')==='1');setSavedOnly(p.get('saved')==='1');setShowArchived(p.get('archived')==='1');
     setPage(Math.max(1,Number(p.get('page'))||1));
     if([12,24,48,96].includes(Number(p.get('size'))))setPageSize(Number(p.get('size')));
@@ -123,7 +124,7 @@ function Index(){
       ['level',levelsSelected,[]],
     ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
-    for(const [k,v] of [['view',tab==='map'?'map':''],['upcoming',futureOnly?'1':''],['saved',savedOnly?'1':''],['archived',showArchived?'1':''],['page',page>1?String(page):''],['size',pageSize!==PAGE_SIZE?String(pageSize):'']]){if(v)url.searchParams.set(k!,v);else url.searchParams.delete(k!);}
+    for(const [k,v] of [['view',tab==='map'?'map':tab==='month'?'month':''],['upcoming',futureOnly?'1':''],['saved',savedOnly?'1':''],['archived',showArchived?'1':''],['page',page>1?String(page):''],['size',pageSize!==PAGE_SIZE?String(pageSize):'']]){if(v)url.searchParams.set(k!,v);else url.searchParams.delete(k!);}
     setCalendarReturnTo(url.pathname+url.search);
     if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());
   },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,filtersReady,tab,futureOnly,savedOnly,showArchived,page,pageSize]);
@@ -179,8 +180,9 @@ function Index(){
         </Link>
         <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm sm:gap-2">
           <button type="button" onClick={()=>jump('calendar')} className={tab==='calendar'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Races</button>
+          <button type="button" onClick={()=>jump('month')} className={tab==='month'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Calendar</button>
           <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Map</button>
-          <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">{user?'My season':'Build my season'} <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
+          <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">Saved ({saved.length}) <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
         </nav>
       </div>
     </header>
@@ -193,7 +195,7 @@ function Index(){
           <p className="mt-6 max-w-2xl text-[15px] leading-7 text-slate-300 md:text-base">Search European junior cycling events by country, date and race type. Compare verified race information and plan your season in one place.</p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Button onClick={()=>jump('calendar')} className="h-11 rounded-md bg-cyan-300 px-5 font-bold text-slate-950 hover:bg-cyan-200"><CalendarDays size={17}/> Explore races</Button>
-            <Link to="/season" className="inline-flex h-11 items-center rounded-md border border-white/30 px-5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-white/10">My racing season <ArrowUpRight size={16} className="ml-2"/></Link>
+            <Link to="/season" className="inline-flex h-11 items-center rounded-md border border-white/30 px-5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-white/10">Saved races on this device <ArrowUpRight size={16} className="ml-2"/></Link>
           </div>
           <p className="mt-6 text-[11px] leading-5 text-slate-400">Race information is sourced from event listings. Always confirm entry details with the organiser.</p>
         </div>
@@ -223,7 +225,7 @@ function Index(){
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
-          <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':'Racing across Europe'}</h2></div>
+          <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
           <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
             {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
             {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
@@ -260,7 +262,8 @@ function Index(){
             <button type="button" onClick={reset} className="inline-flex items-center gap-2 text-sm text-sky-700 hover:underline"><RotateCcw size={14}/> Reset filters</button>
           </div>
         </div>
-        {tab==='map'?<U19Map races={filtered} />:<>
+        {saveError&&<p role="alert" className="mb-4 text-sm text-red-700">{saveError}</p>}
+        {tab==='map'?<U19Map races={filtered} />:tab==='month'?<RaceMonthCalendar races={filtered} year={year} saved={saved} onToggleSaved={toggleSaved}/>:<>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600" role="status">
               Showing {filtered.length?(currentPage-1)*pageSize+1:0}–{Math.min(currentPage*pageSize,filtered.length)} of {filtered.length.toLocaleString('en')} races
@@ -279,7 +282,7 @@ function Index(){
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
                 <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo:calendarReturnTo}} onClick={()=>{try{sessionStorage.setItem('yp-calendar-scroll',String(window.scrollY));}catch{}}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
                 <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span>{getRaceLevel(r).level!=='unverified'&&getRaceLevel(r).level!=='regional'&&<span className="ml-2 text-[11px] text-slate-500">{getRaceLevel(r).subtype}</span>}</div>
-                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved':'Save'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
+                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
                 {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}
@@ -300,7 +303,7 @@ function Index(){
     </div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
       <p>Young Peloton · European U19 road cycling calendar · {year} · Official event names remain in their published language</p>
-      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">My Racing Season</Link><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
+      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
     </footer>
   </main>;
 }
