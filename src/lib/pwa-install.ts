@@ -116,10 +116,24 @@ export function getInstallGuidance({ browser, platform }: InstallEnvironment): {
       note: 'Add to Dock is supported in Safari 17 and later on macOS Sonoma and newer.',
     };
   }
+  if (browser === 'firefox' && platform === 'windows') {
+    return {
+      steps: [
+        'In Firefox 143 or newer, look for the Web apps icon in the address bar and click it.',
+        'Young Peloton will open in an app-like Firefox window, with a Start menu entry and optional taskbar pin.',
+        'If the icon is missing, update Firefox (Microsoft Store versions require Firefox 150+), restart it, and open the site in a normal window.',
+      ],
+      note: 'Firefox for Windows supports web apps independently of the PWA install prompt. The button in the address bar is controlled by Firefox.',
+    };
+  }
   if (browser === 'firefox') {
     return {
-      steps: ['Firefox desktop does not currently offer standard manifest-based app installation.', 'To use Young Peloton as a standalone app, open this website in Chrome, Edge, Opera or another browser that supports PWA installation.', 'Then use its Install app command.'],
-      note: 'You can still use all Young Peloton website features in Firefox. No download can force Firefox to support standalone PWA installation.',
+      steps: [
+        'Firefox on macOS and Linux does not offer built-in web app installation at present.',
+        'Open Young Peloton in Chrome, Edge, or Safari on macOS.',
+        'Then choose Install app (Chrome/Edge) or File → Add to Dock (Safari on macOS).',
+      ],
+      note: 'The Young Peloton website still works normally in Firefox. An installed app depends on what your browser supports.',
     };
   }
   if (browser === 'edge') return {
