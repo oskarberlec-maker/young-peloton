@@ -16,7 +16,8 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit, urljoin
-from confirmations import dates_only, edition, identity, calendar_candidates, CALENDAR
+from confirmations import dates_only, edition, identity, CALENDAR
+from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import transport_url, canonical, normalized, Page
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -239,24 +240,50 @@ def run(args):
     if not fixtures and not args.limit:
         try:
             response = fetcher.get(CALENDAR, {})
-            candidates = list(calendar_candidates(json.loads(response['body']), races))
-            for known, url, rid in candidates:
-                if rid in by_id:
-                    continue  # Existing editions were checked through their own source above.
+            candidates = calendar_entries(json.loads(response['body']))
+            counts['calendarCandidates2027'] = len(candidates)
+            counts['calendarVerified2027'] = 0
+            counts['calendarNewCandidates2027'] = 0
+            for candidate in candidates:
+                rid = candidate['id']
+                if rid not in by_id:
+                    counts['calendarNewCandidates2027'] += 1
                 try:
-                    result = fetcher.get(url, {})
+                    result = fetcher.get(candidate['sourceUrl'], {})
                     if result.get('redirectedHost'):
-                        raise ValueError('Competition source redirected')
-                    body = result['body'].decode('utf-8')
-                    details = Page(body).props.get('CompetitionDetailsModule', {}).get('competitionDetails', {})
-                    if normalized(details.get('name', '')) != normalized(known['name']):
-                        raise ValueError('Competition name does not match known race')
-                    target = {**known, 'id': rid, 'date': '2027-01-01', 'enddate': '2027-01-01'}
-                    observed = dates_only(body, result['contentType'], target, url)
-                    if observed:
-                        new_editions.append({'newEdition': edition(known, observed['fields'], url, now, rid), 'sourceUrl': url, 'adapter': 'uci-competition-v1'})
+                        raise ValueError('UCI competition detail redirected to a different resource')
+                    if result.get('contentType') != 'text/html':
+                        raise ValueError('UCI competition detail did not provide HTML')
+                    detail = confirmed_uci_detail(result['body'].decode('utf-8', errors='replace'), candidate)
+                    if not detail:
+                        raise ValueError('UCI Men Junior calendar and competition detail do not agree on name, date, category or class')
+                    counts['calendarVerified2027'] += 1
+                    if rid in by_id:
+                        # Exact UCI competition ID resolves the edition even if its name
+                        # changed; do not silently rewrite a whole event from a calendar.
+                        race = by_id[rid]
+                        if not race['date'].startswith('2027-'):
+                            review.append({'sourceUrl': candidate['sourceUrl'], 'reason': 'Existing UCI ID belongs to a different year'})
+                            continue
+                        fields = {'date': detail['date'], 'enddate': detail['enddate']}
+                        if all(race.get(key) == value for key, value in fields.items()):
+                            continue
+                        already = [p for p in proposed if p['raceId'] == rid]
+                        if already:
+                            if any(p['fields'].get('date') != fields['date'] or p['fields'].get('enddate') != fields['enddate'] for p in already):
+                                review.append({'sourceUrl': candidate['sourceUrl'], 'reason': 'Contradictory UCI updates for one competition ID'})
+                            continue
+                        proposed.append({'raceId': rid, 'fields': fields, 'sourceUrl': candidate['sourceUrl'],
+                                         'adapter': 'uci-competition-v1',
+                                         'previousFields': {key: race.get(key) for key in fields}})
+                        continue
+                    linked = matching_2026_edition(candidate, races)
+                    entry = edition_from_uci_calendar(candidate, detail, now, linked)
+                    new_editions.append({'newEdition': entry, 'sourceUrl': candidate['sourceUrl'],
+                                         'adapter': 'uci-calendar-and-detail-v1'})
                 except Exception as e:
-                    review.append({'sourceUrl': url, 'reason': str(e)[:250]})
+                    review.append({'sourceUrl': candidate['sourceUrl'], 'reason': str(e)[:250],
+                                   'raceId': rid})
             counts['calendarChecked'] = True
         except Exception as e:
             counts['calendarChecked'] = False
