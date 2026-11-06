@@ -28,7 +28,7 @@ The `Daily race source sync` workflow runs at **04:17 UTC daily** (05:17 Ljublja
 
 The crawler builds its inventory each run from all `sourceUrl`, `proofUrl`, and `resultUrl` values in the current 2026 archive and 2027 UCI dataset. Fragment-only variants are deduplicated, but event-identifying query parameters are preserved. Initial inventory: **9,188 distinct URLs**. There is no automatic discovery of every external website or newly announced race.
 
-All registered URLs are attempted daily. A successful HTTP response means the resource was reached, not necessarily that its race data was understood. PDFs, JavaScript-only shells, and unsupported HTML can be change-detected but **cannot yet be automatically corrected**. The report explicitly separates reachable resources from supported structured sources. Result and eligibility links are monitored, but only primary race sources can drive corrections.
+All registered URLs are attempted daily. A successful HTTP response means the resource was reached, not necessarily that its race data was understood. PDFs, JavaScript-only shells, and unsupported HTML can be change-detected but **cannot yet be automatically corrected**. The report explicitly separates reachable resources from supported structured sources. Primary source links can confirm exact 2027 editions. Result and eligibility links can also confirm an edition, but **only** when their HTML contains one unambiguous Schema.org Event for the same named race and an explicit 2027 date; generic result lists and prose mentions cannot drive corrections.
 
 Supported readers:
 
