@@ -88,7 +88,7 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
       <div className="text-sm">
         <p className="font-semibold">System notifications {enabled && permission==='granted' ? 'on' : 'off'}</p>
         <p className="mt-1 text-xs text-slate-600">
-          {lastCheck ? 'Last successful check: '+new Date(lastCheck).toLocaleString('en-GB') : 'No check completed yet.'}
+          {lastCheck ? 'Last comparison: '+new Date(lastCheck).toLocaleString('en-GB') : 'No check completed yet.'}
         </p>
       </div>
       <button type="button" onClick={() => void toggleNotifications()} className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
