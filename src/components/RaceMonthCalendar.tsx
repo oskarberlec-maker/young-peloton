@@ -12,7 +12,7 @@ export function RaceMonthCalendar({ races, year, saved, onToggleSaved }: {
   races: U19Race[];
   year: number;
   saved: string[];
-  onToggleSaved: (id: string, year: number) => Promise<void>;
+  onToggleSaved: (id: string, year: number, race?: U19Race) => Promise<void>;
 }) {
   const [month, setMonth] = useState(1);
   const [selectedDay, setSelectedDay] = useState('');
@@ -85,7 +85,7 @@ export function RaceMonthCalendar({ races, year, saved, onToggleSaved }: {
         <article key={r.id} className="rounded-lg border p-3">
           <Link to="/race/$raceId" params={{raceId:r.id}} className="font-semibold text-slate-950 hover:underline">{r.name}</Link>
           <p className="mt-1 text-xs text-muted-foreground">{r.place||'Place unconfirmed'} · {countryLabel(r.countryCode,r.country)}</p>
-          <button type="button" onClick={() => void onToggleSaved(r.id,year)} className="mt-2 inline-flex items-center gap-1 rounded border px-2 py-1 text-xs">
+          <button type="button" onClick={() => void onToggleSaved(r.id,year,r)} className="mt-2 inline-flex items-center gap-1 rounded border px-2 py-1 text-xs">
             <Bookmark size={13}/>{bookmarked.has(r.id)?'Saved on device':'Save on device'}
           </button>
         </article>)}</div>

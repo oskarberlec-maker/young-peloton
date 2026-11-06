@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "Young Peloton — European U19 Cycling",
+  "short_name": "Young Peloton",
+  "description": "Discover and save European junior cycling races on your device.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#061638",
+  "theme_color": "#061638",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/yp-favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

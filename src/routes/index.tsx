@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
 import { RaceMonthCalendar } from '@/components/RaceMonthCalendar';
+import { InstallAppButton } from '@/components/InstallAppButton';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
 import { getRaceLevel, LEVEL_OPTIONS, type RaceLevel } from '@/lib/race-level';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
@@ -178,10 +179,11 @@ function Index(){
             <span className="mt-1 text-[9px] font-bold tracking-[0.22em] text-slate-500">EUROPEAN JUNIOR RACING</span>
           </span>
         </Link>
-        <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm sm:gap-2">
+        <nav aria-label="Primary" className="ml-auto flex flex-wrap items-center gap-1 text-sm sm:gap-2">
           <button type="button" onClick={()=>jump('calendar')} className={tab==='calendar'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Races</button>
           <button type="button" onClick={()=>jump('month')} className={tab==='month'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Calendar</button>
           <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Map</button>
+          <InstallAppButton />
           <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">Saved ({saved.length}) <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
         </nav>
       </div>
@@ -282,7 +284,7 @@ function Index(){
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
                 <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo:calendarReturnTo}} onClick={()=>{try{sessionStorage.setItem('yp-calendar-scroll',String(window.scrollY));}catch{}}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
                 <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span>{getRaceLevel(r).level!=='unverified'&&getRaceLevel(r).level!=='regional'&&<span className="ml-2 text-[11px] text-slate-500">{getRaceLevel(r).subtype}</span>}</div>
-                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
+                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year,r)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
                 <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
                 {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}

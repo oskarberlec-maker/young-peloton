@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { readLocalSavedIds, safeSavedIds, writeLocalSavedIds } from './season-storage';
+import { forgetSavedRace, rememberSavedRace } from './saved-race-alerts';
+import type { U19Race } from './u19-data';
 
 /** Device-only bookmarks. Never contacts an account provider or database. */
 export function useRacingSeason() {
@@ -33,12 +35,17 @@ export function useRacingSeason() {
 
   // The second parameter is accepted for compatibility with race cards, but
   // every saved race is keyed by its stable ID, regardless of season year.
-  const toggle = useCallback(async (id: string, _year?: number) => {
+  const toggle = useCallback(async (id: string, _year?: number, race?: U19Race) => {
     const current = readLocalSavedIds();
-    persist(current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
+    if (current.includes(id)) {
+      if (persist(current.filter(x => x !== id))) forgetSavedRace(id);
+    } else if (persist([...current, id]) && race) rememberSavedRace(race);
   }, [persist]);
 
-  const clearAll = useCallback(async () => { persist([]); }, [persist]);
+  const clearAll = useCallback(async () => {
+    const ids = readLocalSavedIds();
+    if (persist([])) ids.forEach(forgetSavedRace);
+  }, [persist]);
   const importIds = useCallback((ids: string[]) =>
     persist([...readLocalSavedIds(), ...ids]), [persist]);
 
