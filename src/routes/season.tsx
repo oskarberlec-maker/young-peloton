@@ -6,6 +6,8 @@ import { downloadIcs } from '@/lib/race-calendar';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { safeSavedIds } from '@/lib/season-storage';
 import { getRaceLevel } from '@/lib/race-level';
+import { InstallAppButton } from '@/components/InstallAppButton';
+import { SavedRaceAlertsPanel } from '@/components/SavedRaceAlertsPanel';
 
 export const Route = createFileRoute('/season')({
   head: () => ({ meta: [
@@ -74,7 +76,7 @@ function SavedPage() {
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5">
         <Link to="/" className="text-xl font-black tracking-tight">YOUNG <span className="text-sky-700">PELOTON</span></Link>
-        <Link to="/" className="text-sm text-sky-700 underline">Explore races</Link>
+        <div className="flex items-center gap-3"><InstallAppButton /><Link to="/" className="text-sm text-sky-700 underline">Explore races</Link></div>
       </div>
     </header>
     <div className="mx-auto max-w-6xl space-y-7 px-5 py-10">
@@ -86,6 +88,7 @@ function SavedPage() {
       <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
         Clearing your browser's website data or using another browser or device can remove this list. Export a backup to keep a copy. Previously cloud-saved races are not automatically transferred.
       </p>
+      <SavedRaceAlertsPanel savedCount={saved.length} />
       <section className="space-y-4" aria-label="Saved races">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-2xl font-bold"><Bookmark size={20}/> Saved races ({saved.length})</h2>
