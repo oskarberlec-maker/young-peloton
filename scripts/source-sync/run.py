@@ -126,10 +126,13 @@ def run(args):
             except ValueError:
                 invalid.append({'raceId': r['id'], 'field': field})
                 continue
-            entry = registry.setdefault(url, {'races': set(), 'primary': set()})
+            entry = registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
             entry['races'].add(r['id'])
-            if field == 'sourceUrl' and r.get('state') != 'merged' and not r.get('duplicate'):
-                entry['primary'].add(r['id'])
+            if r.get('state') != 'merged' and not r.get('duplicate'):
+                if field == 'sourceUrl':
+                    entry['primary'].add(r['id'])
+                else:
+                    entry['secondary'].add(r['id'])
     # Interleave hosts so thousands of one federation's pages don't block all workers.
     from collections import defaultdict, deque
     groups = defaultdict(deque)
@@ -190,7 +193,11 @@ def run(args):
             if not result['redirectedHost']:
                 # Shared calendar URLs cannot safely identify individual subraces
                 # unless the reader itself verifies a stable ID.
-                for rid in sorted(registry[url]['primary']):
+                # Result and eligibility links may also publish structured 2027
+                # editions. Only process secondary URLs with explicit Schema.org
+                # data; broad result lists and plain-text year mentions do not qualify.
+                secondary = (registry[url]['secondary'] - registry[url]['primary']) if ('2027' in decoded and 'application/ld+json' in decoded.lower()) else set()
+                for rid in sorted(registry[url]['primary'] | secondary):
                     race = by_id[rid]
                     try:
                         observed = dates_only(decoded, result['contentType'], race, url)
