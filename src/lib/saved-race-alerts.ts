@@ -40,6 +40,11 @@ function readJson<T>(key: string, fallback: T): T {
   try { return JSON.parse(localStorage.getItem(key) || '') as T; }
   catch { return fallback; }
 }
+function readSnapshots(): Record<string, RaceSnapshot> {
+  const value = readJson<unknown>(SNAPSHOTS_KEY, {});
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, RaceSnapshot> : {};
+}
 function writeJson(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* browser storage unavailable */ }
 }
@@ -57,12 +62,12 @@ export function clearSavedRaceAlerts(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(ALERT_EVENT));
 }
 export function rememberSavedRace(race: U19Race): void {
-  const snapshots = readJson<Record<string, RaceSnapshot>>(SNAPSHOTS_KEY, {});
+  const snapshots = readSnapshots();
   snapshots[race.id] = raceSnapshot(race);
   writeJson(SNAPSHOTS_KEY, snapshots);
 }
 export function forgetSavedRace(id: string): void {
-  const snapshots = readJson<Record<string, RaceSnapshot>>(SNAPSHOTS_KEY, {});
+  const snapshots = readSnapshots();
   delete snapshots[id];
   writeJson(SNAPSHOTS_KEY, snapshots);
 }
@@ -82,13 +87,13 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
     const datasets = await Promise.all(years.map(year => loadU19Races(undefined, undefined, year)));
     const savedIds = new Set(readLocalSavedIds());
     const current = datasets.flatMap(dataset => dataset.races).filter(r => savedIds.has(r.id));
-    const before = readJson<Record<string, RaceSnapshot>>(SNAPSHOTS_KEY, {});
+    const before = readSnapshots();
     const at = new Date().toISOString();
     const alerts: SavedRaceAlert[] = [];
     for (const race of current) {
       const snapshot = raceSnapshot(race);
       const old = before[race.id];
-      if (old) {
+      if (old && typeof old === 'object' && old.id === race.id && old.fields && typeof old.fields === 'object') {
         const changes = compareSnapshots(old, snapshot);
         if (changes.length) alerts.push({
           id: race.id + ':' + at, raceId: race.id, raceName: race.name, checkedAt: at, changes,
