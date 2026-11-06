@@ -230,6 +230,7 @@ function Index(){
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
           <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
             {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
+            {typeof sourceSync.calendarVerified2027==='number'&&<> {sourceSync.calendarVerified2027} official UCI 2027 competitions verified by ID · {sourceSync.confirmed2027Added??0} confirmed 2027 editions added.</>}
             {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
             {Date.now()-Date.parse(sourceSync.lastRunAt)>48*60*60*1000&&<strong className="text-amber-800"> Check overdue: last report is more than 48 hours old.</strong>}
             </> : <>Daily source monitoring is configured. A completed run report is not currently available; showing the last available race data.</>}
