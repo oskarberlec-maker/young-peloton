@@ -16,8 +16,9 @@ describe('2026 to 2027 push notification safety',()=>{
     expect(validateSubscription({...testSubscription,endpoint:'https://127.0.0.1/send'})).toBeNull();
   });
   it('filters saved IDs and rejects unexpected payloads',()=>{
-    expect(validSaved2026(['BG-RACE-123','BG-RACE-123','uci-2027-1234']))
+    expect(validSaved2026(['BG-RACE-123','BG-RACE-123']))
       .toEqual(['BG-RACE-123']);
+    expect(validSaved2026(['BG-RACE-123','uci-2027-1234'])).toBeNull();
     expect(validSaved2026(['OK','<script>'])).toBeNull();
   });
   it('only announces newly confirmed 2027 editions with a 2026 source ID',()=>{
@@ -35,12 +36,12 @@ describe('2026 to 2027 push notification safety',()=>{
     const events=extractNew2027Confirmations(history,published);
     expect(events.map(e=>e.id)).toEqual(['uci-2027-999']);
     const entry:StoredSubscription={
-      subscription:testSubscription,saved2026:['BG-RACE-123'],sent:[],
+      subscription:testSubscription,saved2026Ids:['BG-RACE-123'],sent:[],
       createdAt:'2026-11-06T08:00:00Z',updatedAt:'2026-11-06T08:00:00Z',
     };
     expect(pendingForSubscription(entry,events)).toHaveLength(1);
     expect(pendingForSubscription({...entry,sent:['uci-2027-999']},events)).toEqual([]);
     expect(pendingForSubscription({...entry,createdAt:'2026-11-08T08:00:00Z'},events)).toEqual([]);
-    expect(pendingForSubscription({...entry,saved2026:['OTHER']},events)).toEqual([]);
+    expect(pendingForSubscription({...entry,saved2026Ids:['OTHER']},events)).toEqual([]);
   });
 });
