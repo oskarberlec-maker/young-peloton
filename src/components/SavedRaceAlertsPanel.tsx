@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, RefreshCcw, Trash2 } from 'lucide-react';
+import { Bell, RefreshCcw, Trash2 } from 'lucide-react';
 import {
   ALERT_EVENT, checkSavedRaceChanges, clearSavedRaceAlerts,
-  readLastSavedCheck, readSavedRaceAlerts, setDesktopNotificationsEnabled,
+  readLastSavedCheck, readSavedRaceAlerts,
   type SavedRaceAlert,
 } from '@/lib/saved-race-alerts';
 import { devicePushStatus, enableDevicePush, disableDevicePush } from '@/lib/push-client';
@@ -50,27 +50,6 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
     } finally { setWorking(false); }
   };
 
-  const toggleNotifications = async () => {
-    if (enabling) return;
-    setMessage('');
-    setEnabling(true);
-    try {
-      if (pushSubscribed) {
-        await disableDevicePush();
-        setDesktopNotificationsEnabled(false);
-        setPushSubscribed(false);
-        setMessage('Push alerts have been turned off on this device.');
-      } else {
-        await enableDevicePush();
-        setDesktopNotificationsEnabled(true);
-        setPushSubscribed(true);
-        setPermission('granted');
-        setMessage('Push alerts enabled! You can receive notifications about saved 2026 races when their 2027 dates are officially confirmed, even if the app is closed.');
-      }
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not update notification settings.');
-    } finally { setEnabling(false); }
-  };
 
   return <section aria-label="Saved race updates" className="space-y-4 rounded-xl border bg-white p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -86,27 +65,11 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
         <RefreshCcw size={15}/> {working ? 'Checking…' : 'Check for changes'}
       </button>
     </div>
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
-      <div className="text-sm">
-        <p className="font-semibold">2027 date push alerts {pushSubscribed && permission==='granted' ? 'on' : 'off'}</p>
-        <p className="mt-1 text-xs text-slate-600">
-          {lastCheck ? 'Last local comparison: '+new Date(lastCheck).toLocaleString('en-GB') : 'No local check completed yet.'}
-        </p>
-      </div>
-      <button type="button" disabled={enabling || !pushAvailable} onClick={() => void toggleNotifications()}
-        className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm disabled:opacity-50">
-        {pushSubscribed ? <BellOff size={15}/> : <Bell size={15}/>}
-        {enabling ? 'Updating…' : pushSubscribed ? 'Disable push alerts' : 'Enable push alerts'}
-      </button>
-    </div>
-    <p className="text-xs leading-5 text-muted-foreground">
-      Push notifications can arrive when the browser or app is closed on compatible devices. On iPhone,
-      add Young Peloton to your Home Screen and open the installed app first. Permission is optional.
-      Saved races remain in your browser. To send relevant alerts, the notification service privately stores
-      a device push subscription and cryptographic fingerprints of your saved 2026 race IDs.
-      Notification timing depends on the daily official-source check and your device settings.
+    <p className="text-xs text-muted-foreground">
+      General changes to saved race data are checked whenever Young Peloton is open.
+      For notifications about confirmed 2027 editions while the app is closed, use the separate 2027 push section above.
+      Last comparison: {lastCheck ? new Date(lastCheck).toLocaleString('en-GB') : 'not checked yet'}.
     </p>
-    {!pushAvailable && <p className="text-sm text-amber-800">Web Push is unavailable here. On iPhone, install Young Peloton on your Home Screen. You can still check in-app updates without push notifications.</p>}
     {message && <p role="status" className="text-sm text-sky-800">{message}</p>}
     {alerts.length > 0 ? <>
       <div className="flex flex-wrap items-center justify-between gap-2">
