@@ -1,7 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /season
-Disallow: /report
 
 Sitemap: https://www.youngpeloton.eu/sitemap.xml
