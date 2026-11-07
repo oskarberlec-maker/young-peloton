@@ -16,7 +16,7 @@ concurrency:
 jobs:
   check-sources:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,7 +31,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/source-sync/publish.py restore
       - name: Check stored sources for confirmed 2027 dates
-        run: python scripts/source-sync/run.py --workers 12
+        run: python scripts/source-sync/run.py --workers 24
       - name: Publish verified changes and audit history
         env:
           GH_TOKEN: ${{ github.token }}
