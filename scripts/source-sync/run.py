@@ -19,6 +19,7 @@ from urllib.parse import urlsplit, urljoin
 from confirmations import dates_only, edition, identity, CALENDAR
 from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import transport_url, canonical, normalized, Page
+from catalogue import source_catalogue
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -133,6 +134,25 @@ def run(args):
                     entry['primary'].add(r['id'])
                 else:
                     entry['secondary'].add(r['id'])
+    # The website's generated archive also stores additional official sources.
+    # Scan these sources daily too. Secondary links cannot independently assert
+    # new editions without one unambiguous structured Event and matching ID/name.
+    catalog = source_catalogue()
+    catalog_count = 0
+    for rid, links in catalog.items():
+        if rid not in by_id:
+            continue
+        for original in links:
+            try:
+                url = canonical(original)
+            except ValueError:
+                invalid.append({'raceId': rid, 'field': 'catalogue'})
+                continue
+            entry = registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
+            entry['races'].add(rid)
+            entry['secondary'].add(rid)
+            catalog_count += 1
+    print(json.dumps({'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry)}),flush=True)
     # Interleave hosts so thousands of one federation's pages don't block all workers.
     from collections import defaultdict, deque
     groups = defaultdict(deque)
@@ -154,7 +174,7 @@ def run(args):
     state = {'schemaVersion': 1, 'sources': dict(previous.get('sources', {}))}
     proposed = []
     new_editions = []
-    counts = {'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
+    counts = {'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
     review = []
     fixtures = Path(args.fixtures) if args.fixtures else None
 
