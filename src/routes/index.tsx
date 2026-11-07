@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
+import { CountryEntryGuide } from '@/components/CountryEntryGuide';
+import { RaceSourceLinks } from '@/components/ui/RaceSourceLinks';
 import { RaceMonthCalendar } from '@/components/RaceMonthCalendar';
 import { InstallAppButton } from '@/components/InstallAppButton';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
@@ -228,6 +230,7 @@ function Index(){
           {year===2027&&<span role="status" className="text-sm text-amber-800">Known European races with officially published 2027 dates.</span>}
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
+        <CountryEntryGuide codes={countriesSelected}/>
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
           <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
@@ -296,7 +299,7 @@ function Index(){
                 {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
                 {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link></div>
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link><RaceSourceLinks raceId={r.id}/></div>
             </article>)}
           </div>
           {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
