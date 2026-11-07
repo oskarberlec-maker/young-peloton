@@ -18,7 +18,7 @@ const loadJson=async(path:string):Promise<unknown>=>{
 export const Route = createFileRoute('/api/push-dispatch')({
   server:{handlers:{
     GET:async({request})=>{
-      const secret=process.env.CRON_SECRET;
+      const secret=process.env['CRON_SECRET'];
       if(!secret||request.headers.get('authorization')!=='Bearer '+secret)
         return jsonResponse({error:'Not authorized'},401);
       if(!pushConfigured())return jsonResponse({error:'Push service not configured'},503);
