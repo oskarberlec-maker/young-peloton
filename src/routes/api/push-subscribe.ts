@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import {
   jsonResponse, pushConfigured, removeSubscription, saveSubscription,
-  validSameOrigin, validateSubscription,
+  validSameOrigin, validateSubscription, validSaved2026,
 } from '@/lib/push-server';
 
 export const Route = createFileRoute('/api/push-subscribe')({
@@ -11,10 +11,11 @@ export const Route = createFileRoute('/api/push-subscribe')({
       if(!pushConfigured()) return jsonResponse({error:'Web Push is not available'},503);
       if(Number(request.headers.get('content-length')||0)>10000) return jsonResponse({error:'Request too large'},413);
       try{
-        const body=await request.json() as {subscription?:unknown};
+        const body=await request.json() as {subscription?:unknown;saved2026Ids?:unknown};
         const subscription=validateSubscription(body.subscription);
-        if(!subscription) return jsonResponse({error:'Invalid push subscription'},400);
-        await saveSubscription(subscription);
+        const saved=validSaved2026(body.saved2026Ids);
+        if(!subscription || !saved) return jsonResponse({error:'Invalid subscription or saved races'},400);
+        await saveSubscription(subscription,saved);
         return jsonResponse({ok:true});
       }catch {return jsonResponse({error:'Could not register notification device'},500);}
     },
