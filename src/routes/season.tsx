@@ -8,6 +8,7 @@ import { safeSavedIds } from '@/lib/season-storage';
 import { getRaceLevel } from '@/lib/race-level';
 import { InstallAppButton } from '@/components/InstallAppButton';
 import { SavedRaceAlertsPanel } from '@/components/SavedRaceAlertsPanel';
+import { PushNotificationPanel } from '@/components/PushNotificationPanel';
 
 export const Route = createFileRoute('/season')({
   head: () => ({ meta: [
@@ -88,6 +89,7 @@ function SavedPage() {
       <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
         Clearing your browser's website data or using another browser or device can remove this list. Export a backup to keep a copy. Previously cloud-saved races are not automatically transferred.
       </p>
+      <PushNotificationPanel savedCount={saved.filter(id=>!id.startsWith('uci-2027-')&&!id.startsWith('confirmed-2027-')).length} />
       <SavedRaceAlertsPanel savedCount={saved.length} />
       <section className="space-y-4" aria-label="Saved races">
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -3,6 +3,7 @@ import { readLocalSavedIds } from './season-storage';
 
 export const ALERT_EVENT = 'young-peloton-race-alerts';
 const SNAPSHOTS_KEY = 'yp-saved-race-snapshots-v1';
+const NEW_2027_KEY = 'yp-new-2027-confirmations-v1';
 const ALERTS_KEY = 'yp-saved-race-alerts-v1';
 const NOTIFY_KEY = 'yp-saved-notifications-enabled-v1';
 const LAST_CHECK_KEY = 'yp-saved-last-check-v1';
@@ -82,9 +83,13 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
   activeCheck = (async () => {
     // Load fresh published edits, not guesses from changed HTML of external sources.
     const { loadU19Races } = await import('./u19-data');
+    const { loadSourceUpdates } = await import('./source-updates');
     const years = [...new Set(ids.map(id =>
       id.startsWith('uci-2027-') || id.startsWith('confirmed-2027-') ? 2027 : 2026))];
-    const datasets = await Promise.all(years.map(year => loadU19Races(undefined, undefined, year)));
+    const [datasets,published] = await Promise.all([
+      Promise.all(years.map(year => loadU19Races(undefined, undefined, year))),
+      loadSourceUpdates(),
+    ]);
     const savedIds = new Set(readLocalSavedIds());
     const current = datasets.flatMap(dataset => dataset.races).filter(r => savedIds.has(r.id));
     const before = readSnapshots();
@@ -100,6 +105,30 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
         });
       }
       before[race.id] = snapshot;
+    }
+    // A new 2027 edition uses a different ID from its saved 2026 race.
+    // Compare published confirmations against device-local previous observations.
+    const previousKnown = readJson<Record<string,string>>(NEW_2027_KEY, {});
+    const hasBaseline = typeof localStorage.getItem(NEW_2027_KEY) === 'string';
+    const confirmations = (published && typeof published === 'object' &&
+      (published as {confirmed2027?: unknown}).confirmed2027) as Record<string,unknown> | undefined;
+    if (confirmations && typeof confirmations === 'object') {
+      const known = {...previousKnown};
+      for (const [editionId,value] of Object.entries(confirmations)) {
+        if (!value || typeof value !== 'object') continue;
+        const race=value as {source2026Id?: unknown;date?: unknown;name?: unknown;sourceUpdatedAt?: unknown};
+        if (typeof race.date !== 'string' || !/^2027-\d\d-\d\d$/.test(race.date)) continue;
+        known[editionId]=race.date;
+        if (previousKnown[editionId] || typeof race.source2026Id !== 'string' ||
+          !savedIds.has(race.source2026Id) || typeof race.name !== 'string') continue;
+        const newerThanPreviousCheck = Number.isFinite(lastCheck) &&
+          typeof race.sourceUpdatedAt === 'string' && Date.parse(race.sourceUpdatedAt) > lastCheck;
+        if (hasBaseline || newerThanPreviousCheck) alerts.push({
+          id:editionId+':'+at,raceId:editionId,raceName:race.name,checkedAt:at,
+          changes:['2027 race date confirmed: '+race.date],
+        });
+      }
+      writeJson(NEW_2027_KEY, known);
     }
     // Do not erase a saved race's snapshot simply because its source is missing.
     writeJson(SNAPSHOTS_KEY, before);

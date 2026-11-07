@@ -13,6 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as SeasonRouteImport } from './routes/season'
 import { Route as RaceRaceIdRouteImport } from './routes/race.$raceId'
+import { Route as ApiPushConfigRouteImport } from './routes/api/push-config'
+import { Route as ApiPushSubscriptionRouteImport } from './routes/api/push-subscription'
+import { Route as ApiPushDispatchRouteImport } from './routes/api/push-dispatch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,19 +38,46 @@ const RaceRaceIdRoute = RaceRaceIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
+const ApiPushConfigRoute = ApiPushConfigRouteImport.update({
+  id: '/api/push-config',
+  path: '/api/push-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const ApiPushSubscriptionRoute = ApiPushSubscriptionRouteImport.update({
+  id: '/api/push-subscription',
+  path: '/api/push-subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
+const ApiPushDispatchRoute = ApiPushDispatchRouteImport.update({
+  id: '/api/push-dispatch',
+  path: '/api/push-dispatch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 export interface FileRoutesByFullPath {
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/season': typeof SeasonRoute
   '/race/$raceId': typeof RaceRaceIdRoute
 }
 export interface FileRoutesByTo {
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/season': typeof SeasonRoute
   '/race/$raceId': typeof RaceRaceIdRoute
 }
 export interface FileRoutesById {
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
@@ -56,13 +86,16 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/season' | '/race/$raceId'
+  fullPaths: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/season' | '/race/$raceId'
-  id: '__root__' | '/' | '/about' | '/season' | '/race/$raceId'
+  to: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
+  id: '__root__' | '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  ApiPushConfigRoute: typeof ApiPushConfigRoute
+  ApiPushSubscriptionRoute: typeof ApiPushSubscriptionRoute
+  ApiPushDispatchRoute: typeof ApiPushDispatchRoute
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   SeasonRoute: typeof SeasonRoute
@@ -71,6 +104,27 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/api/push-config': {
+      id: '/api/push-config'
+      path: '/api/push-config'
+      fullPath: '/api/push-config'
+      preLoaderRoute: typeof ApiPushConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/push-subscription': {
+      id: '/api/push-subscription'
+      path: '/api/push-subscription'
+      fullPath: '/api/push-subscription'
+      preLoaderRoute: typeof ApiPushSubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/push-dispatch': {
+      id: '/api/push-dispatch'
+      path: '/api/push-dispatch'
+      fullPath: '/api/push-dispatch'
+      preLoaderRoute: typeof ApiPushDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -103,6 +157,9 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  ApiPushConfigRoute: ApiPushConfigRoute,
+  ApiPushSubscriptionRoute: ApiPushSubscriptionRoute,
+  ApiPushDispatchRoute: ApiPushDispatchRoute,
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   SeasonRoute: SeasonRoute,

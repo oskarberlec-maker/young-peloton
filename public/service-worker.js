@@ -30,9 +30,28 @@ self.addEventListener('fetch', event => {
     return Response.error();
   }));
 });
+self.addEventListener('push', event => {
+  let payload = null;
+  try { payload = event.data?.json() || null; } catch { /* Ignore malformed messages. */ }
+  if (!payload || payload.type !== 'confirmed-2027' ||
+      typeof payload.title !== 'string' || typeof payload.body !== 'string' ||
+      typeof payload.raceId !== 'string') return;
+  event.waitUntil(self.registration.showNotification(payload.title.slice(0,120), {
+    body:payload.body.slice(0,250),
+    icon:'/icons/icon-192.png',
+    badge:'/icons/icon-192.png',
+    tag:'yp-confirmed-2027-'+payload.raceId,
+    data:{url:typeof payload.url === 'string' && /^\/race\/[A-Za-z0-9_-]+$/.test(payload.url) ? payload.url : '/season'},
+  }));
+});
+self.addEventListener('pushsubscriptionchange', event => {
+  // A visit to Young Peloton will re-register a rotated browser endpoint.
+  // Device-local bookmarks remain private unless the user opted into push.
+});
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const target = '/season';
+  const link = event.notification.data?.url;
+  const target = typeof link === 'string' && /^\/race\/[A-Za-z0-9_-]+$/.test(link) ? link : '/season';
   event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(clients => {
     for (const client of clients) {
       if (new URL(client.url).origin === self.location.origin) return client.focus().then(() => client.navigate(target));

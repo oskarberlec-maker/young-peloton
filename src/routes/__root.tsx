@@ -127,8 +127,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <PwaRuntime />
-      <Outlet /> breaks all child routes. */}
+      <PwaRuntime />
       <Outlet />
     </QueryClientProvider>
   );

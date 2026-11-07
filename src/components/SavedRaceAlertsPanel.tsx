@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, RefreshCcw, Trash2 } from 'lucide-react';
+import { Bell, RefreshCcw, Trash2 } from 'lucide-react';
 import {
-  ALERT_EVENT, checkSavedRaceChanges, clearSavedRaceAlerts, desktopNotificationsEnabled,
-  readLastSavedCheck, readSavedRaceAlerts, setDesktopNotificationsEnabled,
+  ALERT_EVENT, checkSavedRaceChanges, clearSavedRaceAlerts,
+  readLastSavedCheck, readSavedRaceAlerts,
   type SavedRaceAlert,
 } from '@/lib/saved-race-alerts';
+import { devicePushStatus, enableDevicePush, disableDevicePush } from '@/lib/push-client';
 
 export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
   const [alerts, setAlerts] = useState<SavedRaceAlert[]>([]);
   const [lastCheck, setLastCheck] = useState('');
-  const [enabled, setEnabled] = useState(false);
-  const [permission, setPermission] = useState('unsupported');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushAvailable, setPushAvailable] = useState(true);
+  const [permission, setPermission] = useState('default');
   const [working, setWorking] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     const refresh = () => {
       setAlerts(readSavedRaceAlerts());
       setLastCheck(readLastSavedCheck());
-      setEnabled(desktopNotificationsEnabled());
-      setPermission('Notification' in window ? Notification.permission : 'unsupported');
     };
     refresh();
+    void devicePushStatus().then(status => {
+      setPushAvailable(status.supported);
+      setPushSubscribed(status.subscribed);
+      setPermission(status.permission);
+    }).catch(() => setPushAvailable(false));
     window.addEventListener(ALERT_EVENT, refresh);
     window.addEventListener('storage', refresh);
     return () => {
@@ -43,40 +49,15 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
       setMessage('Could not check updates. Try again when you have a connection.');
     } finally { setWorking(false); }
   };
-  const toggleNotifications = async () => {
-    setMessage('');
-    if (enabled) {
-      setDesktopNotificationsEnabled(false); setEnabled(false);
-      setMessage('System notifications turned off for Young Peloton.');
-      return;
-    }
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      setMessage('System notifications are not available here. In-app updates still work.');
-      return;
-    }
-    try {
-      // Must be called directly after the user's button click, before other async work.
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      if (result !== 'granted') {
-        setMessage('Notification permission was not granted. You can still view changes here.');
-        return;
-      }
-      setDesktopNotificationsEnabled(true);
-      setEnabled(true);
-      setMessage('Notifications enabled while Young Peloton is running. Alerts when the app is fully closed require a future push service.');
-    } catch {
-      setMessage('Notification permission is unavailable. On iPhone, install the app to your Home Screen first.');
-    }
-  };
+
 
   return <section aria-label="Saved race updates" className="space-y-4 rounded-xl border bg-white p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="flex items-center gap-2 text-xl font-bold"><Bell size={19}/> Updates to saved races</h2>
+        <h2 className="flex items-center gap-2 text-xl font-bold"><Bell size={19}/> Notifications for saved races</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          We compare your saved races with Young Peloton's published data when you open or return to the app.
-          Your saved list stays on this device, with no account or Supabase.
+          Receive an alert when a race saved from 2026 gets its official date for 2027.
+          No account or Supabase required. Other race changes are checked when you open Young Peloton.
         </p>
       </div>
       <button type="button" disabled={working || savedCount===0} onClick={() => void checkNow()}
@@ -84,21 +65,10 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
         <RefreshCcw size={15}/> {working ? 'Checking…' : 'Check for changes'}
       </button>
     </div>
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 p-3">
-      <div className="text-sm">
-        <p className="font-semibold">System notifications {enabled && permission==='granted' ? 'on' : 'off'}</p>
-        <p className="mt-1 text-xs text-slate-600">
-          {lastCheck ? 'Last comparison: '+new Date(lastCheck).toLocaleString('en-GB') : 'No check completed yet.'}
-        </p>
-      </div>
-      <button type="button" onClick={() => void toggleNotifications()} className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
-        {enabled ? <BellOff size={15}/> : <Bell size={15}/>} {enabled ? 'Disable notifications' : 'Enable notifications'}
-      </button>
-    </div>
     <p className="text-xs text-muted-foreground">
-      Updates and system notifications work when you open or use the site or app.
-      Notifications delivered while it is completely closed are not enabled yet.
-      Changes only appear once official data is published, not merely because an external page changed.
+      General changes to saved race data are checked whenever Young Peloton is open.
+      For notifications about confirmed 2027 editions while the app is closed, use the separate 2027 push section above.
+      Last comparison: {lastCheck ? new Date(lastCheck).toLocaleString('en-GB') : 'not checked yet'}.
     </p>
     {message && <p role="status" className="text-sm text-sky-800">{message}</p>}
     {alerts.length > 0 ? <>
