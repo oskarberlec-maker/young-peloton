@@ -117,7 +117,7 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
       for (const [editionId,value] of Object.entries(confirmations)) {
         if (!value || typeof value !== 'object') continue;
         const race=value as {source2026Id?: unknown;date?: unknown;name?: unknown;sourceUpdatedAt?: unknown};
-        if (typeof race.date !== 'string' || !/^2027-\\d\\d-\\d\\d$/.test(race.date)) continue;
+        if (typeof race.date !== 'string' || !/^2027-\d\d-\d\d$/.test(race.date)) continue;
         known[editionId]=race.date;
         if (previousKnown[editionId] || typeof race.source2026Id !== 'string' ||
           !savedIds.has(race.source2026Id) || typeof race.name !== 'string') continue;
