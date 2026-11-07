@@ -94,7 +94,7 @@ export function SavedRaceAlertsPanel({ savedCount }: { savedCount: number }) {
       </button>
     </div>
     <p className="text-xs text-muted-foreground">
-      Enabling push saves this device's subscription and its followed 2026 race IDs privately on the notification server solely for matching alerts; your full race collection still belongs to this browser.
+      When you enable push, only this device's notification subscription and the IDs of followed 2026 races are stored privately to match alerts. Your full race list and other information remain in this browser.
       On iPhone, install Young Peloton to the Home Screen before enabling push. Other supported browsers can receive notifications without installing.
       An alert is sent only when the official 2027 confirmation is published after you subscribe, not from an unverified link change.
     </p>
