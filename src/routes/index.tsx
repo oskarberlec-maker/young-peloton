@@ -269,7 +269,6 @@ function Index(){
             <button type="button" onClick={reset} className="inline-flex items-center gap-2 text-sm text-sky-700 hover:underline"><RotateCcw size={14}/> Reset filters</button>
           </div>
         </div>
-        <CountryEntryGuide codes={countriesSelected}/>
         {saveError&&<p role="alert" className="mb-4 text-sm text-red-700">{saveError}</p>}
         {tab==='map'?<U19Map races={filtered} />:tab==='month'?<RaceMonthCalendar races={filtered} year={year} saved={saved} onToggleSaved={toggleSaved}/>:<>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -306,6 +305,7 @@ function Index(){
           {filtered.length===0&&<p className="rounded-xl border border-border p-10 text-center text-muted-foreground">No races match these filters. Try a different date, country or verification status.</p>}
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}
+        <CountryEntryGuide codes={countriesSelected}/>
         <aside className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The {year} source snapshot was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline 2026 race levels follow the Young Peloton classification workbook; 2027 UCI levels follow the official UCI calendar; other 2027 levels remain unverified; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
         </aside>
