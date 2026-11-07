@@ -294,7 +294,7 @@ function Index(){
                 {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
                 {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}</div>
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link></div>
             </article>)}
           </div>
           {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
