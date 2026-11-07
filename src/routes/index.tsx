@@ -21,7 +21,9 @@ export const Route = createFileRoute('/')({
     { name:'description',content:'European junior road cycling races in 2026 and 2027: dates, original sources and an interactive map of venues. Data and confirmation status are clearly labelled.' },
     { property:'og:title',content:'Young Peloton — European U19 Race Calendar' },
     { property:'og:type',content:'website' },
-  ]}),component:Index,
+    { property:'og:url',content:'https://www.youngpeloton.eu/' },
+    { name:'robots',content:'index,follow,max-image-preview:large' },
+  ],links:[{rel:'canonical',href:'https://www.youngpeloton.eu/'}]}),component:Index,
 });
 
 const MONTHS=['All months','January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -292,7 +294,7 @@ function Index(){
                 {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
                 {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}</div>
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link></div>
             </article>)}
           </div>
           {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
@@ -306,7 +308,7 @@ function Index(){
     </div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
       <p>Young Peloton · European U19 road cycling calendar · {year} · Official event names remain in their published language</p>
-      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><a className="underline" href="https://github.com/oskarberlec-maker/young-peloton/issues/new" target="_blank" rel="noopener noreferrer">Report incorrect race information</a></nav>
+      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><Link to="/report" className="font-semibold underline">Report incorrect race information</Link></nav>
     </footer>
   </main>;
 }

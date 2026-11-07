@@ -14,7 +14,8 @@ export const Route = createFileRoute('/season')({
   head: () => ({ meta: [
     { title: 'Saved races on this device — Young Peloton' },
     { name: 'description', content: 'Your locally saved European U19 cycling races, available without an account.' },
-  ] }),
+    { name: 'robots', content: 'noindex,follow' },
+  ], links: [{ rel:'canonical',href:'https://www.youngpeloton.eu/season' }] }),
   component: SavedPage,
 });
 
