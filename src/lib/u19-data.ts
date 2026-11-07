@@ -1,6 +1,7 @@
 import { applySourceUpdates, loadSourceUpdates, mergeConfirmed2027 } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
+import { applyLatestExcelRaceLevels } from './excel-rank-apply';
 import type { ExcelLevelSymbol } from './race-level-data';
 
 /** European U19 2026 race archive (user-supplied source ZIP dated 2026-10-23).
@@ -84,6 +85,7 @@ async function loadArchive(onProgress?: (loaded: number,total: number) => void, 
   if (races.some(r=>!safeUrl(r.sourceUrl))) throw new Error('Missing or unsafe source URL');
   // Assign each workbook rank to its exact race ID; checksum prevents misaligned imports.
   applyExcelRaceLevels(races);
+  applyLatestExcelRaceLevels(races);
   return {manifest,races};
 }
 let archivePromise: ReturnType<typeof loadArchive> | undefined;
