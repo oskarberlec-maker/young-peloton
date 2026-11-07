@@ -230,7 +230,6 @@ function Index(){
           {year===2027&&<span role="status" className="text-sm text-amber-800">Known European races with officially published 2027 dates.</span>}
         </div>
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
-        <CountryEntryGuide codes={countriesSelected}/>
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
           <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
@@ -270,6 +269,7 @@ function Index(){
             <button type="button" onClick={reset} className="inline-flex items-center gap-2 text-sm text-sky-700 hover:underline"><RotateCcw size={14}/> Reset filters</button>
           </div>
         </div>
+        <CountryEntryGuide codes={countriesSelected}/>
         {saveError&&<p role="alert" className="mb-4 text-sm text-red-700">{saveError}</p>}
         {tab==='map'?<U19Map races={filtered} />:tab==='month'?<RaceMonthCalendar races={filtered} year={year} saved={saved} onToggleSaved={toggleSaved}/>:<>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
