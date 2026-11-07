@@ -6,7 +6,7 @@ export type StoredSubscription = {
   createdAt: string;
   updatedAt: string;
   sent: string[];
-  saved2026Ids: string[];
+  saved2026Hashes: string[];
 };
 
 const PREFIX = 'push/v1/subscriptions/';
@@ -58,12 +58,12 @@ async function keyPath(endpoint: string) {
   return PREFIX + Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('') + '.json';
 }
 async function readAt(path: string): Promise<StoredSubscription | null> {
-  const result = await get(path, {access:'private',token:blobToken()});
+  const result = await get(path, {access:'private',token:blobToken(),useCache:false});
   if (!result || result.statusCode !== 200 || !result.stream) return null;
   try {
     const obj = await new Response(result.stream).json() as StoredSubscription;
     if (!validateSubscription(obj.subscription) || !Array.isArray(obj.sent) || typeof obj.createdAt !== 'string' ||
-        !validSaved2026(obj.saved2026Ids)) return null;
+        !Array.isArray(obj.saved2026Hashes) || obj.saved2026Hashes.some(x => typeof x!=='string' || !/^[0-9a-f]{64}$/.test(x))) return null;
     return obj;
   } catch { return null; }
 }
@@ -74,6 +74,14 @@ async function writeAt(path: string, entry: StoredSubscription) {
     cacheControlMaxAge:60,
   });
 }
+async function hash2026Id(id: string): Promise<string> {
+  const secret=process.env.VAPID_PRIVATE_KEY;
+  if (!secret) throw new Error('Push secret is not configured');
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),
+    {name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const signed=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(id));
+  return Array.from(new Uint8Array(signed),x=>x.toString(16).padStart(2,'0')).join('');
+}
 export async function saveSubscription(subscription: WebPushSubscription, saved2026Ids: string[]) {
   const path = await keyPath(subscription.endpoint);
   const old = await readAt(path);
@@ -82,7 +90,7 @@ export async function saveSubscription(subscription: WebPushSubscription, saved2
     subscription,
     createdAt:old?.createdAt||now,updatedAt:now,
     sent:old?.sent||[],
-    saved2026Ids,
+    saved2026Hashes:await Promise.all(saved2026Ids.map(hash2026Id)),
   });
 }
 export async function removeSubscription(endpoint: string) {
@@ -134,12 +142,16 @@ export function extractNew2027Confirmations(history: unknown, published: unknown
   }
   return [...found.values()].sort((a,b)=>a.at.localeCompare(b.at));
 }
-export function pendingForSubscription(entry: StoredSubscription, events: PublishedConfirmation[]) {
+export async function pendingForSubscription(entry: StoredSubscription, events: PublishedConfirmation[]) {
   const sent=new Set(entry.sent);
   const since=Date.parse(entry.createdAt);
-  const watched = new Set(entry.saved2026Ids || []);
-  return events.filter(event=>watched.has(event.source2026Id) &&
-    Date.parse(event.at)>since && !sent.has(event.id));
+  const watched=new Set(entry.saved2026Hashes || []);
+  const result: PublishedConfirmation[]=[];
+  for(const event of events) {
+    if (Date.parse(event.at)<=since || sent.has(event.id)) continue;
+    if (watched.has(await hash2026Id(event.source2026Id))) result.push(event);
+  }
+  return result;
 }
 export async function deliverOne(subscription: WebPushSubscription, event: PublishedConfirmation) {
   const vapid={
