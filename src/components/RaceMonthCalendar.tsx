@@ -70,6 +70,14 @@ export function RaceMonthCalendar({ races, year, saved, onToggleSaved }: {
     if(next<1||next>12)return;
     setMonth(next);setSelectedDay('');setShowAll(false);
   };
+  const changeWeek=(direction:number)=>{
+    const target=new Date(Date.UTC(year,month-1,selectedNumber));
+    target.setUTCDate(target.getUTCDate()+direction*7);
+    if(target.getUTCFullYear()!==year)return;
+    setMonth(target.getUTCMonth()+1);
+    setSelectedDay(target.toISOString().slice(0,10));
+    setShowAll(false);
+  };
   const renderDay=(day:number|null,key:string,compact:boolean)=>{
     if(!day)return <div key={key} aria-hidden="true" className={compact?'rounded-lg bg-slate-50':'min-h-[95px] border-b border-r bg-slate-50/50'}/>;
     const iso=prefix+pad(day),events=dayMap.get(iso)||[];
@@ -109,12 +117,22 @@ export function RaceMonthCalendar({ races, year, saved, onToggleSaved }: {
       </div>
     </div>
     <div className="rounded-xl border border-slate-200 bg-white p-3 sm:hidden">
-      <p className="mb-3 text-sm font-semibold text-slate-700">Select a day</p>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-700">Select a day · Week ${Math.floor((firstWeekday+selectedNumber-1)/7)+1}</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={()=>changeWeek(-1)} aria-label="Previous week"
+            disabled={month===1&&selectedNumber<=7}
+            className="rounded-lg border border-slate-300 p-2 disabled:opacity-30"><ChevronLeft size={17}/></button>
+          <button type="button" onClick={()=>changeWeek(1)} aria-label="Next week"
+            disabled={month===12&&selectedNumber>24}
+            className="rounded-lg border border-slate-300 p-2 disabled:opacity-30"><ChevronRight size={17}/></button>
+        </div>
+      </div>
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((name,i)=><span key={i} className="text-center text-xs font-semibold text-slate-500">{name}</span>)}
         {weekDays.map((day,i)=>renderDay(day,'week-'+i,true))}
       </div>
-      <p className="mt-3 text-xs text-slate-500">Use the arrows above to change month. Numbers show matching races; an amber dot indicates a saved race.</p>
+      <p className="mt-3 text-xs text-slate-500">Browse weeks with the arrows, or choose a month above. Numbers show matching races; an amber dot means a saved race.</p>
     </div>
     <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white sm:block">
       <div className="grid grid-cols-7 border-b bg-slate-50">
