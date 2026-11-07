@@ -41,7 +41,7 @@ self.addEventListener('push', event => {
     icon:'/icons/icon-192.png',
     badge:'/icons/icon-192.png',
     tag:'yp-confirmed-2027-'+payload.raceId,
-    data:{url:typeof payload.url === 'string' && payload.url.startsWith('/race/') && /^[A-Za-z0-9_%-]+$/.test(payload.url.slice(6)) ? payload.url : '/season'},
+    data:{url:typeof payload.url === 'string' && /^\/race\/[A-Za-z0-9_-]+$/.test(payload.url) ? payload.url : '/season'},
   }));
 });
 self.addEventListener('pushsubscriptionchange', event => {
