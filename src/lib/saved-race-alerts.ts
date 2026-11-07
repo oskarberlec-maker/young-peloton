@@ -7,6 +7,7 @@ const NEW_2027_KEY = 'yp-new-2027-confirmations-v1';
 const ALERTS_KEY = 'yp-saved-race-alerts-v1';
 const NOTIFY_KEY = 'yp-saved-notifications-enabled-v1';
 const LAST_CHECK_KEY = 'yp-saved-last-check-v1';
+const CONFIRMED_2027_SEEN_KEY = 'yp-seen-2027-confirmations-v1';
 const MIN_INTERVAL_MS = 5 * 60 * 1000;
 
 const labels = {
@@ -129,6 +130,33 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
         });
       }
       writeJson(NEW_2027_KEY, known);
+    }
+    // Also detect when a bookmarked 2026 race gains its first verified 2027
+    // edition. This on-device history works even without push permission.
+    const { loadSourceUpdates } = await import('./source-updates');
+    const published = await loadSourceUpdates();
+    const confirmed = (published as {confirmed2027?:Record<string,unknown>}|null)?.confirmed2027;
+    const seen = new Set(readJson<string[]>(CONFIRMED_2027_SEEN_KEY, []));
+    if (confirmed && typeof confirmed === 'object') {
+      const selected2026 = new Set(ids.filter(id => !id.startsWith('uci-2027-') && !id.startsWith('confirmed-2027-')));
+      for (const [id,entry] of Object.entries(confirmed)) {
+        if (!entry || typeof entry !== 'object') continue;
+        const r = entry as {name?:unknown;date?:unknown;enddate?:unknown;source2026Id?:unknown};
+        if (!/^((uci-2027-\\d+)|(confirmed-2027-[a-f0-9]{20}))$/.test(id) ||
+          typeof r.source2026Id !== 'string' || !selected2026.has(r.source2026Id) ||
+          typeof r.date !== 'string' || !/^2027-\\d{2}-\\d{2}$/.test(r.date) ||
+          typeof r.enddate !== 'string' || !/^2027-\\d{2}-\\d{2}$/.test(r.enddate) ||
+          typeof r.name !== 'string' || seen.has(id)) continue;
+        alerts.push({
+          id:'confirmed-2027:'+id,
+          raceId:id,
+          raceName:r.name,
+          checkedAt:at,
+          changes:['2027 date confirmed: '+r.date+(r.enddate!==r.date?' to '+r.enddate:'')],
+        });
+        seen.add(id);
+      }
+      writeJson(CONFIRMED_2027_SEEN_KEY,[...seen].slice(-1000));
     }
     // Do not erase a saved race's snapshot simply because its source is missing.
     writeJson(SNAPSHOTS_KEY, before);
