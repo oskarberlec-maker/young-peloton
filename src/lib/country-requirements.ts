@@ -3,7 +3,13 @@
  * Unknown means NOT established — never the same as a confirmed prohibition.
  * Every event may impose additional age, citizenship, team and registration rules.
  */
-export type CountryRequirement = {club: 'required'|'usually'|'optional'|'conditional'|'uncertain'|'unknown'; solo:'possible'|'conditional'|'club-route'|'unconfirmed'; licence:string; note:string; source:string};
+export type FederationEmailGuidance = {
+  status: 'allowed-with-exceptions' | 'conditional' | 'unconfirmed';
+  details: string;
+  replyDate: string;
+  calendarUrl?: string;
+};
+export type CountryRequirement = {club: 'required'|'usually'|'optional'|'conditional'|'uncertain'|'unknown'; solo:'possible'|'conditional'|'club-route'|'unconfirmed'; licence:string; note:string; source:string; federationEmail?:FederationEmailGuidance};
 const data: [string,CountryRequirement['club'],CountryRequirement['solo'],string,string,string][] = [
  [
   "AL",
@@ -430,4 +436,72 @@ const data: [string,CountryRequirement['club'],CountryRequirement['solo'],string
   "https://swissroadseries.ch/anmeldung-teilnahme/"
  ]
 ];
-export const COUNTRY_REQUIREMENTS: Record<string,CountryRequirement> = Object.fromEntries(data.map(([code,club,solo,licence,note,source])=>[code,{club,solo,licence,note,source}]));
+
+/** Conditions for visiting riders, from direct replies received from national
+ * cycling federations in 2026. These are summaries of correspondence, not
+ * public legal rules or guarantees that a particular event accepts solo riders.
+ * Do not expose private Gmail message links on the public website.
+ */
+const federationEmailGuidance: Partial<Record<string, FederationEmailGuidance>> = {
+  NO: {
+    status: 'allowed-with-exceptions',
+    details: "The Norwegian Cycling Federation says foreign riders can enter its races except national championships. It did not specify whether a foreign U19 rider may register without a club or team.",
+    replyDate: '2026-10-28',
+    calendarUrl: 'https://sykling.no/sykkelritt/terminliste/',
+  },
+  CZ: {
+    status: 'conditional',
+    details: "For races in 2027, the federation requires a valid UCI racing licence and authorisation from the rider's home federation for each race. Contact the event organiser for entry details; solo/team eligibility was not specified.",
+    replyDate: '2026-10-20',
+    calendarUrl: 'https://portal.czechcyclingfederation.com/RaceCalendar',
+  },
+  GR: {
+    status: 'conditional',
+    details: "The federation requires home-federation authorisation, a valid 2027 cycling licence, a medical certificate and insurance valid in Greece. Solo/team entry was not confirmed.",
+    replyDate: '2026-10-19',
+    calendarUrl: 'https://www.hellenic-cycling.gr/',
+  },
+  IE: {
+    status: 'conditional',
+    details: "Cycling Ireland says visiting riders need their racing licence, a permission letter and the eligibility form linked on its website. Check the event regulations for individual or team entries.",
+    replyDate: '2026-10-19',
+    calendarUrl: 'https://www.cyclingireland.ie/events/find-an-event/',
+  },
+  DK: {
+    status: 'conditional',
+    details: "Foreign riders are generally welcome with a valid racing licence from their national federation. Some events may require further documentation or permission from the home federation. Club/team entry depends on the race.",
+    replyDate: '2026-10-19',
+    calendarUrl: 'https://www.cyklingdanmark.dk/',
+  },
+  CY: {
+    status: 'conditional',
+    details: "Register directly with the event organiser. Present a medical certificate and passport/ID; show a UCI licence if you have one. Riders registered with a home federation need permission to race abroad. Solo/team rules were not specified.",
+    replyDate: '2026-10-19',
+    calendarUrl: 'https://www.cypruscycling.org/articles/competition-schedule',
+  },
+  CH: {
+    status: 'conditional',
+    details: "Swiss Cycling requires a racing licence from the rider's country of residence and an international competition permit. The reply did not establish a universal club or solo-entry rule for visiting juniors.",
+    replyDate: '2026-10-16',
+    calendarUrl: 'https://www.swiss-cycling.ch/de/veranstaltungen/kalender/',
+  },
+  GB: {
+    status: 'conditional',
+    details: "British Cycling requires a home-federation licence with a UCI ID and a letter of authorisation. Enter and pay the organiser directly; other road/circuit races may be possible depending on the rider's racing history and event category.",
+    replyDate: '2026-10-16',
+    calendarUrl: 'https://www.britishcycling.org.uk/juniorroadseries/',
+  },
+  LT: {
+    status: 'unconfirmed',
+    details: "The Lithuanian federation only confirmed that its 2027 calendar was not yet available. It did not state whether foreign riders can enter or which documents they need.",
+    replyDate: '2026-10-16',
+    calendarUrl: 'https://www.ldsf.lt/',
+  },
+  MT: {
+    status: 'unconfirmed',
+    details: "The Maltese federation provided a seasonal overview (usually late January to July, with Tour of Malta in April), but did not confirm foreign U19 rider eligibility, licences, or solo/team entry rules.",
+    replyDate: '2026-11-03',
+  },
+};
+
+export const COUNTRY_REQUIREMENTS: Record<string,CountryRequirement> = Object.fromEntries(data.map(([code,club,solo,licence,note,source])=>[code,{club,solo,licence,note,source,federationEmail:federationEmailGuidance[code]}]));
