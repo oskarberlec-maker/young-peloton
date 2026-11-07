@@ -3,7 +3,6 @@ import { buildPushPayload, type PushSubscription as WebPushSubscription } from '
 
 export type StoredSubscription = {
   subscription: WebPushSubscription;
-  saved2026: string[];
   createdAt: string;
   updatedAt: string;
   sent: string[];
@@ -44,13 +43,6 @@ export function validateSubscription(input: unknown): WebPushSubscription | null
       typeof k.auth !== 'string' || !/^[A-Za-z0-9_-]{16,44}$/.test(k.auth)) return null;
   return {endpoint:url.toString(),expirationTime:null,keys:{p256dh:k.p256dh,auth:k.auth}};
 }
-export function validSaved2026(input: unknown): string[] | null {
-  if (!Array.isArray(input) || input.length > 500) return null;
-  if (input.some(x => typeof x !== 'string' || x.length > 180 || x.length < 2 ||
-    /[<>\u0000-\u001f]/.test(x))) return null;
-  return [...new Set(input.filter(id =>
-    !id.startsWith('uci-2027-') && !id.startsWith('confirmed-2027-')))];
-}
 async function keyPath(endpoint: string) {
   const data = new TextEncoder().encode(endpoint);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -61,8 +53,7 @@ async function readAt(path: string): Promise<StoredSubscription | null> {
   if (!result || result.statusCode !== 200 || !result.stream) return null;
   try {
     const obj = await new Response(result.stream).json() as StoredSubscription;
-    if (!validateSubscription(obj.subscription) || !Array.isArray(obj.saved2026) ||
-        !Array.isArray(obj.sent) || typeof obj.createdAt !== 'string') return null;
+    if (!validateSubscription(obj.subscription) || !Array.isArray(obj.sent) || typeof obj.createdAt !== 'string') return null;
     return obj;
   } catch { return null; }
 }
@@ -70,15 +61,15 @@ async function writeAt(path: string, entry: StoredSubscription) {
   await put(path, JSON.stringify(entry), {
     access:'private', allowOverwrite:true, addRandomSuffix:false,
     contentType:'application/json', token:blobToken(),
-    cacheControlMaxAge:0,
+    cacheControlMaxAge:60,
   });
 }
-export async function saveSubscription(subscription: WebPushSubscription, saved2026: string[]) {
+export async function saveSubscription(subscription: WebPushSubscription) {
   const path = await keyPath(subscription.endpoint);
   const old = await readAt(path);
   const now = new Date().toISOString();
   await writeAt(path, {
-    subscription,saved2026,
+    subscription,
     createdAt:old?.createdAt||now,updatedAt:now,
     sent:old?.sent||[],
   });
@@ -89,7 +80,7 @@ export async function removeSubscription(endpoint: string) {
 export async function listSubscriptions(): Promise<{path:string;entry:StoredSubscription}[]> {
   const results: {path:string;entry:StoredSubscription}[] = [];
   let cursor: string | undefined;
-  for(let page=0;page<20;page++) {
+  for(let page=0;page<2;page++) {
     const data = await list({prefix:PREFIX,limit:1000,cursor,token:blobToken()});
     for(const blob of data.blobs) {
       const entry=await readAt(blob.pathname);
@@ -133,11 +124,11 @@ export function extractNew2027Confirmations(history: unknown, published: unknown
   return [...found.values()].sort((a,b)=>a.at.localeCompare(b.at));
 }
 export function pendingForSubscription(entry: StoredSubscription, events: PublishedConfirmation[]) {
-  const follows=new Set(entry.saved2026);
   const sent=new Set(entry.sent);
   const since=Date.parse(entry.createdAt);
-  return events.filter(event=>follows.has(event.source2026Id) &&
-    Date.parse(event.at)>since && !sent.has(event.id));
+  // Broadcast only the edition ID. The service worker filters it using the
+  // device-only bookmark list, which is never uploaded to the server.
+  return events.filter(event=>Date.parse(event.at)>since && !sent.has(event.id));
 }
 export async function deliverOne(subscription: WebPushSubscription, event: PublishedConfirmation) {
   const vapid={
