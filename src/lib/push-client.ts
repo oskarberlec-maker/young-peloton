@@ -33,10 +33,10 @@ export async function devicePushStatus():Promise<PushStatus> {
   }catch{return {supported:true,subscribed:false,permission};}
 }
 async function sendSubscription(subscription:PushSubscription):Promise<void> {
-  const response=await fetch('/api/push-subscription',{
+  const response=await fetch('/api/push-subscribe',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({subscription:subscription.toJSON(),saved2026:saved2026()}),
+    body:JSON.stringify({subscription:subscription.toJSON(),saved2026Ids:saved2026()}),
   });
   if(!response.ok)throw new Error('Could not register this device for notifications.');
 }
@@ -66,7 +66,7 @@ export async function disableDevicePush():Promise<void> {
   const subscription=await registration.pushManager.getSubscription();
   if(!subscription)return;
   try{
-    await fetch('/api/push-subscription',{
+    await fetch('/api/push-subscribe',{
       method:'DELETE',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({subscription:subscription.toJSON()}),
     });
