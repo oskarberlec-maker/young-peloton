@@ -18,7 +18,7 @@ import { Route as ApiPushSubscriptionRouteImport } from './routes/api/push-subsc
 import { Route as ApiPushDispatchRouteImport } from './routes/api/push-dispatch'
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/', | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
+  id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -89,7 +89,7 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
-  id: '__root__' | '/' | '/about' | '/season' | '/race/$raceId'
+  id: '__root__' | '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
