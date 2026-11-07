@@ -31,7 +31,7 @@ export const Route = createFileRoute('/api/push-dispatch')({
         // Keep a bounded workload for serverless functions; remaining events
         // will still be pending in the private per-device sent history tomorrow.
         for(const {path,entry} of subscriptions.slice(0,300)){
-          const pending=pendingForSubscription(entry,events).slice(0,10);
+          const pending=(await pendingForSubscription(entry,events)).slice(0,10);
           if(!pending.length)continue;
           let remove=false;
           for(const event of pending){
