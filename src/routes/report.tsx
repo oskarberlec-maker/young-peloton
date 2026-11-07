@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowLeft, ExternalLink, Send, ShieldCheck } from 'lucide-react';
 import { REPORT_TYPES, type ReportType } from '@/lib/issue-report';
 
@@ -32,7 +32,7 @@ function ReportPage(){
   const [success,setSuccess]=useState('');
   const [error,setError]=useState('');
 
-  const submit=async(e:React.FormEvent<HTMLFormElement>)=>{
+  const submit=async(e:FormEvent<HTMLFormElement>)=>{
     e.preventDefault();if(submitting)return;
     setSubmitting(true);setError('');
     try{
