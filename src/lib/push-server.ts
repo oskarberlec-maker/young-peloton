@@ -10,8 +10,8 @@ export type StoredSubscription = {
 };
 
 const PREFIX = 'push/v1/subscriptions/';
-const blobToken = () => process.env.BLOB_READ_WRITE_TOKEN;
-export const pushConfigured = () => Boolean(blobToken() && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+const blobToken = () => process.env['BLOB_READ_WRITE_TOKEN'] || '';
+export const pushConfigured = () => Boolean(blobToken() && process.env['VAPID_PUBLIC_KEY'] && process.env['VAPID_PRIVATE_KEY']);
 const bodyHeaders = { 'Content-Type':'application/json', 'Cache-Control':'no-store' };
 
 export function validSaved2026(input: unknown): string[] | null {
@@ -41,16 +41,16 @@ const pushHosts = (hostname: string) =>
 export function validateSubscription(input: unknown): WebPushSubscription | null {
   if (!input || typeof input !== 'object') return null;
   const s = input as Record<string,unknown>;
-  if (typeof s.endpoint !== 'string' || s.endpoint.length > 2500) return null;
+  if (typeof s['endpoint'] !== 'string' || s['endpoint'].length > 2500) return null;
   let url: URL;
-  try { url = new URL(s.endpoint); } catch { return null; }
+  try { url = new URL(s['endpoint']); } catch { return null; }
   if (url.protocol !== 'https:' || !pushHosts(url.hostname) || url.username || url.password || url.port) return null;
-  const keys = s.keys;
+  const keys = s['keys'];
   if (!keys || typeof keys !== 'object') return null;
   const k = keys as Record<string, unknown>;
-  if (typeof k.p256dh !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(k.p256dh) ||
-      typeof k.auth !== 'string' || !/^[A-Za-z0-9_-]{16,44}$/.test(k.auth)) return null;
-  return {endpoint:url.toString(),expirationTime:null,keys:{p256dh:k.p256dh,auth:k.auth}};
+  if (typeof k['p256dh'] !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(k['p256dh']) ||
+      typeof k['auth'] !== 'string' || !/^[A-Za-z0-9_-]{16,44}$/.test(k['auth'])) return null;
+  return {endpoint:url.toString(),expirationTime:null,keys:{p256dh:k['p256dh'],auth:k['auth']}};
 }
 async function keyPath(endpoint: string) {
   const data = new TextEncoder().encode(endpoint);
@@ -75,7 +75,7 @@ async function writeAt(path: string, entry: StoredSubscription) {
   });
 }
 async function hash2026Id(id: string): Promise<string> {
-  const secret=process.env.VAPID_PRIVATE_KEY;
+  const secret=process.env['VAPID_PRIVATE_KEY'];
   if (!secret) throw new Error('Push secret is not configured');
   const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),
     {name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -100,7 +100,7 @@ export async function listSubscriptions(): Promise<{path:string;entry:StoredSubs
   const results: {path:string;entry:StoredSubscription}[] = [];
   let cursor: string | undefined;
   for(let page=0;page<2;page++) {
-    const data = await list({prefix:PREFIX,limit:1000,cursor,token:blobToken()});
+    const data = await list({prefix:PREFIX,limit:1000,...(cursor ? {cursor} : {}),token:blobToken()});
     for(const blob of data.blobs) {
       const entry=await readAt(blob.pathname);
       if(entry)results.push({path:blob.pathname,entry});
@@ -127,18 +127,18 @@ export function extractNew2027Confirmations(history: unknown, published: unknown
   for(const item of h.changes) {
     if (!item || typeof item !== 'object')continue;
     const r=item as Record<string,unknown>;
-    const after=r.after as Record<string,unknown>|null;
-    if (r.before !== null || !after || typeof after !== 'object')continue;
-    const id=r.raceId;
-    if (typeof id !== 'string' || typeof r.at !== 'string' || !Number.isFinite(Date.parse(r.at)))continue;
+    const after=r['after'] as Record<string,unknown>|null;
+    if (r['before'] !== null || !after || typeof after !== 'object')continue;
+    const id=r['raceId'];
+    if (typeof id !== 'string' || typeof r['at'] !== 'string' || !Number.isFinite(Date.parse(r['at'])))continue;
     const current=p.confirmed2027[id];
-    if (!current || typeof current.source2026Id !== 'string' || !current.source2026Id)continue;
-    const date=current.date,enddate=current.enddate,name=current.name;
+    if (!current || typeof current['source2026Id'] !== 'string' || !current['source2026Id'])continue;
+    const date=current['date'],enddate=current['enddate'],name=current['name'];
     if (typeof date!=='string'||!/^2027-\d\d-\d\d$/.test(date)||
       typeof enddate!=='string'||!/^2027-\d\d-\d\d$/.test(enddate)||
-      typeof name!=='string'|| !name || !/^https:\/\//.test(String(current.sourceUrl||'')))continue;
-    found.set(id,{id,source2026Id:current.source2026Id,name:name.slice(0,160),
-      date,enddate,at:r.at});
+      typeof name!=='string'|| !name || !/^https:\/\//.test(String(current['sourceUrl']||'')))continue;
+    found.set(id,{id,source2026Id:current['source2026Id'],name:name.slice(0,160),
+      date,enddate,at:r['at']});
   }
   return [...found.values()].sort((a,b)=>a.at.localeCompare(b.at));
 }
@@ -155,9 +155,9 @@ export async function pendingForSubscription(entry: StoredSubscription, events: 
 }
 export async function deliverOne(subscription: WebPushSubscription, event: PublishedConfirmation) {
   const vapid={
-    subject: process.env.VAPID_SUBJECT || 'https://young-peloton.vercel.app',
-    publicKey:process.env.VAPID_PUBLIC_KEY || '',
-    privateKey:process.env.VAPID_PRIVATE_KEY || '',
+    subject: process.env['VAPID_SUBJECT'] || 'https://young-peloton.vercel.app',
+    publicKey:process.env['VAPID_PUBLIC_KEY'] || '',
+    privateKey:process.env['VAPID_PRIVATE_KEY'] || '',
   };
   const url='/race/'+encodeURIComponent(event.id);
   const payload=await buildPushPayload({
