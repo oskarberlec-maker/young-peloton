@@ -142,10 +142,10 @@ export async function checkSavedRaceChanges(force = false): Promise<SavedRaceAle
       for (const [id,entry] of Object.entries(confirmed)) {
         if (!entry || typeof entry !== 'object') continue;
         const r = entry as {name?:unknown;date?:unknown;enddate?:unknown;source2026Id?:unknown};
-        if (!/^((uci-2027-\\d+)|(confirmed-2027-[a-f0-9]{20}))$/.test(id) ||
+        if (!/^((uci-2027-\d+)|(confirmed-2027-[a-f0-9]{20}))$/.test(id) ||
           typeof r.source2026Id !== 'string' || !selected2026.has(r.source2026Id) ||
-          typeof r.date !== 'string' || !/^2027-\\d{2}-\\d{2}$/.test(r.date) ||
-          typeof r.enddate !== 'string' || !/^2027-\\d{2}-\\d{2}$/.test(r.enddate) ||
+          typeof r.date !== 'string' || !/^2027-\d{2}-\d{2}$/.test(r.date) ||
+          typeof r.enddate !== 'string' || !/^2027-\d{2}-\d{2}$/.test(r.enddate) ||
           typeof r.name !== 'string' || seen.has(id)) continue;
         alerts.push({
           id:'confirmed-2027:'+id,
