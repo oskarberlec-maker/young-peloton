@@ -32,7 +32,8 @@ for(let i=0;i<archiveIds.length;i+=2000){
   filenames.push(filename);
 }
 const file=await readFile(join(root,'src/lib/uci-2027.ts'),'utf8');
-const arrayStart=file.indexOf('[',file.indexOf('export const UCI_2027_RACES'));
+const assignment=file.indexOf('= [',file.indexOf('export const UCI_2027_RACES'));
+const arrayStart=assignment>=0?assignment+2:-1;
 const arrayEnd=file.lastIndexOf(']');
 if(arrayStart<0||arrayEnd<arrayStart)throw Error('Cannot parse 2027 UCI calendar');
 const calendar=JSON.parse(file.slice(arrayStart,arrayEnd+1));
