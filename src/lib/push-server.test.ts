@@ -15,7 +15,7 @@ async function fingerprint(id:string) {
   return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-beforeEach(()=>{process.env.VAPID_PRIVATE_KEY='test-only-push-key';});
+beforeEach(()=>{process.env['VAPID_PRIVATE_KEY']='test-only-push-key';});
 
 describe('2026 to 2027 push notification safety',()=>{
   it('only accepts public HTTPS endpoints from trusted push services',()=>{
