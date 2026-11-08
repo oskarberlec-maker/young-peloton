@@ -504,4 +504,4 @@ const federationEmailGuidance: Partial<Record<string, FederationEmailGuidance>> 
   },
 };
 
-export const COUNTRY_REQUIREMENTS: Record<string,CountryRequirement> = Object.fromEntries(data.map(([code,club,solo,licence,note,source])=>[code,{club,solo,licence,note,source,federationEmail:federationEmailGuidance[code]}]));
+export const COUNTRY_REQUIREMENTS: Record<string,CountryRequirement> = Object.fromEntries(data.map(([code,club,solo,licence,note,source])=>[code,{club,solo,licence,note,source,...(federationEmailGuidance[code] ? {federationEmail:federationEmailGuidance[code]} : {})}]));

@@ -13,19 +13,19 @@ describe('federation email guidance for foreign U19 entrants', () => {
   });
 
   it('does not treat a missing eligibility confirmation as permission', () => {
-    expect(COUNTRY_REQUIREMENTS.LT.federationEmail?.status).toBe('unconfirmed');
-    expect(COUNTRY_REQUIREMENTS.MT.federationEmail?.status).toBe('unconfirmed');
+    expect(COUNTRY_REQUIREMENTS['LT']!.federationEmail?.status).toBe('unconfirmed');
+    expect(COUNTRY_REQUIREMENTS['MT']!.federationEmail?.status).toBe('unconfirmed');
   });
 
   it('preserves the explicit Norwegian national championship exception', () => {
-    const norway = COUNTRY_REQUIREMENTS.NO.federationEmail;
+    const norway = COUNTRY_REQUIREMENTS['NO']!.federationEmail;
     expect(norway?.status).toBe('allowed-with-exceptions');
     expect(norway?.details).toMatch(/except national championships/);
   });
 
   it('keeps foreign guidance separate from the domestic club licensing rules', () => {
-    expect(COUNTRY_REQUIREMENTS.DK.club).toBe('required');
-    expect(COUNTRY_REQUIREMENTS.DK.federationEmail?.status).toBe('conditional');
-    expect(COUNTRY_REQUIREMENTS.GB.club).toBe('optional');
+    expect(COUNTRY_REQUIREMENTS['DK']!.club).toBe('required');
+    expect(COUNTRY_REQUIREMENTS['DK']!.federationEmail?.status).toBe('conditional');
+    expect(COUNTRY_REQUIREMENTS['GB']!.club).toBe('optional');
   });
 });
