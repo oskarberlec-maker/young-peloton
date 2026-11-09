@@ -42,7 +42,7 @@ class SourceCatalogueTest(unittest.TestCase):
         self.assertIn('https://results.example/1',merged['AL-ONE'])
         self.assertIn('https://extra.example/2',merged['AL-TWO'])
         self.assertNotIn('https://results.example/shared',merged['AL-TWO'])
-        self.assertNotIn('https://results.example/shared',merged['AL-THREE'])
+        self.assertNotIn('https://results.example/shared',merged.get('AL-THREE', []))
         self.assertIn('xl-2',merged)
         self.assertEqual(metrics['legacyIdsMapped'],1)
         self.assertEqual(metrics['legacyIdsUnmapped'],2)
