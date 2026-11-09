@@ -3,10 +3,6 @@
     {
       "path": "/api/push-dispatch",
       "schedule": "25 8 * * *"
-    },
-    {
-      "path": "/api/report-mail-retry",
-      "schedule": "40 8 * * *"
     }
   ]
 }
