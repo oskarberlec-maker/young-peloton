@@ -30,6 +30,7 @@ function ReportPage(){
   const [startedAt,setStartedAt]=useState(()=>Date.now());
   const [submitting,setSubmitting]=useState(false);
   const [success,setSuccess]=useState('');
+  const [emailStatus,setEmailStatus]=useState<'sent'|'pending'>('pending');
   const [error,setError]=useState('');
 
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
@@ -41,9 +42,10 @@ function ReportPage(){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({raceId:id,raceName:name,issueType:kind,description,proofUrl,website,startedAt}),
       });
-      const result=await response.json() as {success?:boolean;reference?:string;error?:string};
+      const result=await response.json() as {success?:boolean;reference?:string;error?:string;emailStatus?:'sent'|'pending'};
       if(!response.ok || !result.success) throw new Error(result.error||'Could not submit the report.');
       setSuccess(result.reference||'submitted');
+      setEmailStatus(result.emailStatus==='sent'?'sent':'pending');
       setDescription('');setProofUrl('');
     }catch(reason){
       setError(reason instanceof Error ? reason.message : 'Unable to send report.');
@@ -67,6 +69,8 @@ function ReportPage(){
       {success ? <div className="mt-8 rounded-xl border border-emerald-200 bg-white p-6" role="status">
         <div className="flex items-center gap-2 font-bold text-emerald-800"><ShieldCheck size={20}/> Report received</div>
         <p className="mt-2 text-sm">Thank you. Your report was stored for manual review. Reference: <code className="break-all">{success}</code>.</p>
+        {emailStatus==='sent'?<p className="mt-2 text-sm font-semibold text-emerald-800">An email notification has been sent to the Young Peloton administrator.</p>
+          :<p className="mt-2 text-sm text-amber-800">Your report is saved. Email notification is pending delivery; you do not need to send it again.</p>}
         <p className="mt-2 text-xs text-slate-600">Reports do not automatically change published race information. We verify the supporting source first.</p>
         <button type="button" onClick={()=>{setSuccess('');setStartedAt(Date.now());}} className="mt-4 rounded-lg border px-4 py-2 text-sm">Report another issue</button>
       </div> : <form onSubmit={e=>void submit(e)} className="mt-8 space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
@@ -97,7 +101,7 @@ function ReportPage(){
         </label>
         <div className="absolute -left-[9999px]" aria-hidden="true"><label>Website <input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label></div>
         {error&&<p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        <p className="text-xs text-slate-600">Submitted details and evidence are kept privately for manual verification. Please do not include personal information.</p>
+        <p className="text-xs text-slate-600">Your report and evidence are saved privately and emailed to the Young Peloton administrator when mail delivery is available. No GitHub account is needed. Please do not include personal information.</p>
         <button disabled={submitting} type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto"><Send size={16}/>{submitting?'Sending…':'Submit correction'}</button>
       </form>}
     </div>
