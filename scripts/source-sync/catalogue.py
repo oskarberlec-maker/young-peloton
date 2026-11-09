@@ -7,6 +7,8 @@ URLs are never used to change race dates or categories.
 import gzip
 import json
 import re
+from collections import defaultdict
+from core import canonical
 from urllib.parse import urlsplit, urlunsplit
 from pathlib import Path
 
@@ -92,3 +94,51 @@ def combined_source_catalogue():
     for rid, urls in excel.items():
         merged.setdefault(rid, set()).update(urls)
     return {rid: sorted(urls) for rid, urls in sorted(merged.items())}
+
+
+def linked_source_catalogue(races):
+    """Resolve old xl-* source keys only with unique exact archive-URL evidence.
+
+    The Excel result-source import already uses the actual race IDs and always
+    takes precedence. An archive source URL shared by multiple races is *not*
+    evidence for merging those races. Unresolved legacy sources stay monitored,
+    but cannot change any race until a trustworthy identity is established.
+    """
+    by_id = {race['id']: race for race in races}
+    anchors = defaultdict(set)
+    for race in races:
+        if race['date'].startswith('2027-') or race.get('state') == 'merged' or race.get('duplicate'):
+            continue
+        try:
+            if race.get('sourceUrl'):
+                anchors[canonical(race['sourceUrl'])].add(race['id'])
+        except ValueError:
+            pass
+
+    merged = {rid: set(urls) for rid, urls in excel_result_sources().items()}
+    metrics = {'legacyIdsMapped': 0, 'legacyIdsUnmapped': 0,
+               'legacyLinksMapped': 0, 'legacyLinksUnmapped': 0,
+               'legacyAmbiguousIds': 0}
+    for old_id, urls in source_catalogue().items():
+        actual_id = old_id if old_id in by_id else None
+        if actual_id is None and old_id.startswith('xl-') and urls:
+            try:
+                candidates = anchors.get(canonical(urls[0]), set())
+            except ValueError:
+                candidates = set()
+            if len(candidates) == 1:
+                actual_id = next(iter(candidates))
+            elif len(candidates) > 1:
+                metrics['legacyAmbiguousIds'] += 1
+        if actual_id:
+            merged.setdefault(actual_id, set()).update(urls)
+            metrics['legacyIdsMapped'] += 1
+            metrics['legacyLinksMapped'] += len(urls)
+        else:
+            # Keep the URL under its historical identity for HTTP change
+            # detection. Never use it to update an arbitrary current race.
+            merged.setdefault(old_id, set()).update(urls)
+            metrics['legacyIdsUnmapped'] += 1
+            metrics['legacyLinksUnmapped'] += len(urls)
+
+    return {rid: sorted(links) for rid, links in sorted(merged.items())}, metrics
