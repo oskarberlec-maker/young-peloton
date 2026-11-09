@@ -1,3 +1,34 @@
+## Verified ID reconciliation and auditable failures (9 November 2026)
+
+The original generated legacy source catalogue uses `xl-*` row IDs, not the
+actual race IDs in the 2026 archive. It is no longer safe to treat those IDs
+as current races. The scanner now resolves each legacy entry only when its
+**official source URL** points to exactly one active, non-duplicate 2026 race.
+Shared federation/calendar links and unmatched rows remain **read-only
+monitored links**, not authorities for race date or eligibility updates.
+The original 28,975 Excel source rows already use actual race IDs and retain
+all unique ID-to-URL associations.
+
+The app build now generates 16 compact per-ID source-link indexes at
+`/data/2026/source-links-N.json`; the race detail page loads just one index
+rather than bundling the >2 MiB legacy `xl-*` source file. A small, conservative
+`/data/2027/edition-links.json` links a 2027 UCI competition to a 2026 race
+only when the normalized **full name, country, and Men Junior category** match
+exactly one non-merged archived 2026 race. The Saved page shows 2027 dates
+when that association is verified. Similar names and ambiguous identities
+are never auto-merged.
+
+The public daily `status.json` includes `legacyIdsMapped`,
+`legacyIdsUnmapped`, `legacyAmbiguousIds`, `reviewCategories`,
+`topReviewHosts`, and `topErrorHosts`. Full `report.json` entries also carry
+a `category` and `host` (403, 429, missing page, timeout, oversized document,
+identity conflict, unparsed source, etc.). The scanner **still checks each
+distinct URL only once per run**, with every race association preserved.
+Unsupported pages, access failures and ambiguous IDs never become guessed
+2027 dates. 2026 archive data is immutable.
+
+---
+
 ## Complete Excel result sources (9 November 2026)
 
 The `Viri izidov` worksheet in the user's `Evropa_U19_2026_vse_dirke_in_podatki.xlsx`
