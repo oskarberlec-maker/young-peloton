@@ -143,6 +143,9 @@ def run(args):
     unmapped_excel_ids = set(imported_excel) - set(by_id)
     imported_pairs = sum(map(len, imported_excel.values()))
     for rid, links in catalog.items():
+        if args.fixtures:
+            if rid not in by_id:
+                continue
         # Check URLs even when an archival race ID was merged or excluded.
         # Never use such orphaned links to alter a race without a matching ID.
         for original in links:
