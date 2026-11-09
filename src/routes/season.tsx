@@ -35,7 +35,10 @@ function SavedPage() {
     const controller = new AbortController();
     setLoading(true);
     setLoadError('');
-    void Promise.all(years.split(',').map(y => loadU19Races(undefined, controller.signal, Number(y))))
+    // Include 2027 editions even if the user only bookmarked the 2026 race.
+    const requestedYears=new Set(years.split(',').map(Number));
+    if(requestedYears.has(2026))requestedYears.add(2027);
+    void Promise.all([...requestedYears].map(y => loadU19Races(undefined, controller.signal, y)))
       .then(results => { if (!controller.signal.aborted) setRaces(results.flatMap(x => x.races)); })
       .catch(reason => { if (!controller.signal.aborted) setLoadError(String(reason)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -46,6 +49,16 @@ function SavedPage() {
   const selected = useMemo(() => races.filter(r => savedSet.has(r.id))
     .sort((a,b) => a.date.localeCompare(b.date)), [races, savedSet]);
   const missing = !loading && !loadError ? saved.filter(id => !races.some(r => r.id === id)) : [];
+  const futureEditions = useMemo(() => {
+    const result=new Map<string,U19Race>();
+    for(const r of races){
+      if(r.date.startsWith('2027-')&&r.source2026Id){
+        const existing=result.get(r.source2026Id);
+        if(!existing||r.date<existing.date)result.set(r.source2026Id,r);
+      }
+    }
+    return result;
+  },[races]);
 
   const exportBackup = () => {
     const data = JSON.stringify({ format: 'young-peloton-bookmarks-v1', savedRaceIds: saved }, null, 2);
@@ -117,6 +130,14 @@ function SavedPage() {
             <h3 className="mt-2 font-bold"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:underline">{r.name}</Link></h3>
             <p className="mt-1 text-sm text-muted-foreground">{r.place} · {countryLabel(r.countryCode, r.country)}</p>
             <p className="mt-2 text-xs text-muted-foreground">{getRaceLevel(r).label}</p>
+            {futureEditions.has(r.id) && <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm">
+              <p className="font-bold text-sky-900">2027 date confirmed</p>
+              <p className="mt-1 text-slate-800">{niceDate(futureEditions.get(r.id)!.date)}
+                {futureEditions.get(r.id)!.enddate!==futureEditions.get(r.id)!.date
+                  ? ' – '+niceDate(futureEditions.get(r.id)!.enddate):''}</p>
+              <Link to="/race/$raceId" params={{raceId:futureEditions.get(r.id)!.id}}
+                className="mt-1 inline-block font-semibold text-sky-800 underline">View 2027 edition</Link>
+            </div>}
             <button className="mt-3 rounded-md border px-3 py-1 text-sm" onClick={() => void toggle(r.id)}>Remove from device</button>
           </article>)}
         </div>

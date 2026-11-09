@@ -104,7 +104,20 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
   }
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
   const payload=await updates;
-  const races=applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
+  let races: U19Race[] = applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
+  if(year!==2026){
+    try{
+      const response=await fetch('/data/2027/edition-links.json',{signal:signal??null});
+      if(response.ok){
+        const links=await response.json() as Record<string,string>;
+        races=races.map(r=>{
+          const previousId = links[r.id];
+          return !r.source2026Id && typeof previousId === 'string'
+            ? {...r,source2026Id:previousId}:r;
+        });
+      }
+    }catch{ /* Links add convenience; never hide race dates when unavailable. */ }
+  }
   if(year===2027) base.manifest={...base.manifest,rawEuropeanRecords:races.length,uniqueVisibleRecords:races.filter(visibleRace).length,sourceMeta:{...base.manifest.sourceMeta,total:races.length,cancelled:races.filter(r=>r.state==='cancelled').length}};
   races.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
   return {manifest:base.manifest,races};

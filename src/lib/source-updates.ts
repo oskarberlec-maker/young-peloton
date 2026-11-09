@@ -7,6 +7,9 @@ export type SourceSyncStatus = {
   supportedSources: number; changedSources: number; needsReview: number; updatedRaces: number;
   calendarCandidates2027?: number; calendarVerified2027?: number; calendarNewCandidates2027?: number;
   confirmed2027Added?: number;
+  legacyIdsMapped?: number; legacyIdsUnmapped?: number; legacyAmbiguousIds?: number;
+  reviewCategories?: Record<string,number>;
+  topErrorHosts?: {host:string;count:number}[];
 };
 type Override = { fields: Partial<U19Race>; updatedAt: string; sourceUrl: string; adapter: string };
 const fields = new Set(['date','enddate','name','place','type','state','liveLevel','uciClass','lat','lon','precision']);

@@ -236,6 +236,11 @@ function Index(){
             {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
             {typeof sourceSync.calendarVerified2027==='number'&&<> {sourceSync.calendarVerified2027} official UCI 2027 competitions verified by ID · {sourceSync.confirmed2027Added??0} confirmed 2027 editions added.</>}
             {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
+            {typeof sourceSync.legacyIdsMapped==='number'&&<> {sourceSync.legacyIdsMapped} legacy source IDs safely linked; {sourceSync.legacyIdsUnmapped??0} unresolved (not used for automatic date corrections).</>}
+            {sourceSync.reviewCategories&&<span className="block pt-1">
+              Review breakdown: {Object.entries(sourceSync.reviewCategories).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([kind,count])=>
+                <span className="mr-3" key={kind}>{kind.replaceAll('_',' ')}: {count.toLocaleString('en')}</span>)}
+            </span>}
             {Date.now()-Date.parse(sourceSync.lastRunAt)>48*60*60*1000&&<strong className="text-amber-800"> Check overdue: last report is more than 48 hours old.</strong>}
             </> : <>Daily source monitoring is configured. A completed run report is not currently available; showing the last available race data.</>}
             {' '}Automatic corrections cover supported official-source fields. Other changed pages are flagged for review.
