@@ -1,3 +1,24 @@
+## Complete Excel result sources (9 November 2026)
+
+The `Viri izidov` worksheet in the user's `Evropa_U19_2026_vse_dirke_in_podatki.xlsx`
+contains **28,975** ID–source rows. The immutable compressed import at
+`scripts/source-sync/data/excel-result-sources-2026.json.gz` contains
+**28,944 unique ID–URL pairs, 9,926 race IDs and 10,327 distinct URL strings**.
+Each source is retained under every applicable race ID. The daily crawler
+merges these links with its pre-existing archive catalogue, then canonicalizes
+and checks **each distinct HTTP(S) resource at most once per run**, even if many
+race IDs reference it. Unsupported link types, PDFs and broad result indices
+are still monitored but cannot assert a 2027 edition unless a supported parser
+matches an unambiguous race identity.
+
+Original race IDs that were archived, merged, or not published are preserved
+as read-only source associations; they **cannot trigger speculative data changes**.
+The daily `status.json` exposes `excelSourceRows`, `excelUniquePairs`,
+`excelRaceIds`, `excelUnmappedRaceIds`, `catalogueLinks` and
+`totalSources`. The 28,975 rows are **not** 28,975 distinct websites.
+
+---
+
 ## 2027 ID-based discovery (6 November 2026)
 
 Every scheduled scan still checks all stored source/proof/result links for changes, and known official event records are checked for explicit 2027 dates. In addition, the scan now enumerates **every European Men Junior road competition ID** from the official UCI 2027 MJ calendar, including races that were **not listed in the 2026 archive**. For each new UCI competition ID it downloads the linked detail page and only publishes when the name, 2027 dates, competition class and category evidence agree with the calendar. Unrelated events, unsupported classes, contradictory dates and missing detail data are held for review. URL year alone is never proof.
