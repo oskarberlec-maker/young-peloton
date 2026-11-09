@@ -32,13 +32,13 @@ describe('Correction email delivery',()=>{
     expect(fetcher).not.toHaveBeenCalled();
   });
   it('only marks success after provider returns a valid message ID',async()=>{
-    const fetcher=vi.fn(async()=>new Response(JSON.stringify({id:'email_123'}),{status:200}));
+    const fetcher=vi.fn(async (_input:RequestInfo | URL, _options?:RequestInit)=>new Response(JSON.stringify({id:'email_123'}),{status:200}));
     vi.stubGlobal('fetch',fetcher);
     expect(await sendIssueReportEmail(report)).toEqual({sent:true,emailId:'email_123'});
     const [endpoint,options]=fetcher.mock.calls[0]!;
     expect(endpoint).toBe('https://api.resend.com/emails');
-    expect(options.headers['Idempotency-Key']).toBe('yp-correction-'+report.reference);
-    const payload=JSON.parse(options.body);
+    expect((options?.headers as Record<string,string>)['Idempotency-Key']).toBe('yp-correction-'+report.reference);
+    const payload=JSON.parse(String(options?.body));
     expect(payload.to).toEqual(['recipient@example.com']);
     expect(payload.text).toContain(report.proofUrl);
   });
