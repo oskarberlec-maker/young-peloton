@@ -19,7 +19,7 @@ from urllib.parse import urlsplit, urljoin
 from confirmations import dates_only, edition, identity, CALENDAR
 from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import transport_url, canonical, normalized, Page
-from catalogue import combined_source_catalogue, excel_result_sources
+from catalogue import linked_source_catalogue, excel_result_sources
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -137,7 +137,7 @@ def run(args):
     # The website's generated archive also stores additional official sources.
     # Scan these sources daily too. Secondary links cannot independently assert
     # new editions without one unambiguous structured Event and matching ID/name.
-    catalog = combined_source_catalogue()
+    catalog, link_metrics = linked_source_catalogue(races)
     imported_excel = excel_result_sources()
     catalog_count = 0
     unmapped_excel_ids = set(imported_excel) - set(by_id)
@@ -159,7 +159,7 @@ def run(args):
             if rid in by_id:
                 entry['secondary'].add(rid)
             catalog_count += 1
-    print(json.dumps({'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry),
+    print(json.dumps({**link_metrics,'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry),
         'excelRows':28975,'excelUniquePairs':imported_pairs,'excelRaceIds':len(imported_excel),
         'excelUnmappedRaceIds':len(unmapped_excel_ids)}),flush=True)
     # Interleave hosts so thousands of one federation's pages don't block all workers.
@@ -183,7 +183,7 @@ def run(args):
     state = {'schemaVersion': 1, 'sources': dict(previous.get('sources', {}))}
     proposed = []
     new_editions = []
-    counts = {'excelSourceRows':28975,'excelUniquePairs':imported_pairs,
+    counts = {**link_metrics,'excelSourceRows':28975,'excelUniquePairs':imported_pairs,
               'excelRaceIds':len(imported_excel),'excelUnmappedRaceIds':len(unmapped_excel_ids),
               'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
     review = []
@@ -377,9 +377,48 @@ def run(args):
         overlay['races'][rid] = {'fields': merged, 'updatedAt': now, 'sourceUrl': change['sourceUrl'], 'adapter': change['adapter']}
         history['changes'].append({'at': now, 'raceId': rid, 'sourceUrl': change['sourceUrl'], 'adapter': change['adapter'], 'before': before, 'after': change['fields']})
     counts['updatedRaces'] = len({p['raceId'] for p in proposed}) + added
+    # Review categories distinguish access failures, unsupported readers,
+    # and genuine identity/date conflicts. Large source lists must be
+    # understandable without downloading thousands of individual rows.
+    from collections import Counter
+    category_counts = Counter()
+    hosts = Counter()
+    host_errors = Counter()
+    for item in review:
+        reason = str(item.get('reason', ''))
+        if 'HTTP Error 403' in reason or 'Forbidden' in reason:
+            category = 'blocked_403'
+        elif 'HTTP Error 429' in reason or 'rate-limit' in reason.lower():
+            category = 'rate_limited'
+        elif 'HTTP Error 404' in reason:
+            category = 'not_found_404'
+        elif 'timed out' in reason.lower() or 'timeout' in reason.lower():
+            category = 'timeout'
+        elif 'exceeds 8 MiB' in reason:
+            category = 'too_large'
+        elif 'HTTP Error' in reason or '<urlopen error' in reason:
+            category = 'other_network_error'
+        elif 'ambiguous' in reason.lower() or 'conflict' in reason.lower() or 'contradict' in reason.lower():
+            category = 'identity_conflict'
+        elif 'Mass-change' in reason or 'mass-change' in reason.lower():
+            category = 'safety_circuit_breaker'
+        elif item.get('details') or 'unparseable' in reason.lower() or 'supported reader' in reason:
+            category = 'unsupported_or_changed'
+        else:
+            category = 'needs_manual_review'
+        item['category'] = category
+        host = urlsplit(item.get('sourceUrl', '')).hostname or 'unknown'
+        item['host'] = host
+        category_counts[category] += 1
+        hosts[host] += 1
+        if category in ('blocked_403','rate_limited','not_found_404','timeout','too_large','other_network_error'):
+            host_errors[host] += 1
+    counts['reviewCategories'] = dict(sorted(category_counts.items()))
+    counts['topReviewHosts'] = [{'host': h, 'count': n} for h,n in hosts.most_common(20)]
+    counts['topErrorHosts'] = [{'host': h, 'count': n} for h,n in host_errors.most_common(15)]
     counts['needsReview'] = len(review)
     # Keep history complete in the data branch (Git also preserves prior snapshots).
-    status = {'schemaVersion': 1, 'lastRunAt': now, 'complete': len(urls) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'confirmed dates of known races only', 'note': 'Stored sources are checked for explicit 2027 dates of known races. 2026 records and other fields are preserved. Unsupported pages and PDFs require review; failed sources never alter race data.'}
+    status = {'schemaVersion': 1, 'lastRunAt': now, 'complete': len(urls) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'verified 2027 dates of known or uniquely identified new UCI races', 'note': 'Source URLs are checked once per run. 2026 archives are preserved. Confirmed 2027 editions require identity verification; blocked, unsupported and PDF sources require review.'}
     overlay['updatedAt'] = now
     for name, data in [('state', state), ('overrides', overlay), ('history', history), ('status', {k:v for k,v in status.items() if k != 'review'}), ('report', status)]:
         (out / (name + '.json')).write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '\n')
