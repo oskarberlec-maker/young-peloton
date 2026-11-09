@@ -110,8 +110,11 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
       const response=await fetch('/data/2027/edition-links.json',{signal:signal??null});
       if(response.ok){
         const links=await response.json() as Record<string,string>;
-        races=races.map(r=>!r.source2026Id&&typeof links[r.id]==='string'
-          ? {...r,source2026Id:links[r.id]}:r);
+        races=races.map(r=>{
+          const previousId = links[r.id];
+          return !r.source2026Id && typeof previousId === 'string'
+            ? {...r,source2026Id:previousId}:r;
+        });
       }
     }catch{ /* Links add convenience; never hide race dates when unavailable. */ }
   }
