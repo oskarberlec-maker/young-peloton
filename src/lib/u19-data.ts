@@ -104,7 +104,7 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
   }
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
   const payload=await updates;
-  let races=applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
+  let races: U19Race[] = applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
   if(year!==2026){
     try{
       const response=await fetch('/data/2027/edition-links.json',{signal:signal??null});
