@@ -19,7 +19,7 @@ from urllib.parse import urlsplit, urljoin
 from confirmations import dates_only, edition, identity, CALENDAR
 from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import transport_url, canonical, normalized, Page
-from catalogue import source_catalogue
+from catalogue import combined_source_catalogue, excel_result_sources
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 8 * 1024 * 1024
@@ -137,11 +137,17 @@ def run(args):
     # The website's generated archive also stores additional official sources.
     # Scan these sources daily too. Secondary links cannot independently assert
     # new editions without one unambiguous structured Event and matching ID/name.
-    catalog = source_catalogue()
+    catalog = combined_source_catalogue()
+    imported_excel = excel_result_sources()
     catalog_count = 0
+    unmapped_excel_ids = set(imported_excel) - set(by_id)
+    imported_pairs = sum(map(len, imported_excel.values()))
     for rid, links in catalog.items():
-        if rid not in by_id:
-            continue
+        if args.fixtures:
+            if rid not in by_id:
+                continue
+        # Check URLs even when an archival race ID was merged or excluded.
+        # Never use such orphaned links to alter a race without a matching ID.
         for original in links:
             try:
                 url = canonical(original)
@@ -150,9 +156,12 @@ def run(args):
                 continue
             entry = registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
             entry['races'].add(rid)
-            entry['secondary'].add(rid)
+            if rid in by_id:
+                entry['secondary'].add(rid)
             catalog_count += 1
-    print(json.dumps({'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry)}),flush=True)
+    print(json.dumps({'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry),
+        'excelRows':28975,'excelUniquePairs':imported_pairs,'excelRaceIds':len(imported_excel),
+        'excelUnmappedRaceIds':len(unmapped_excel_ids)}),flush=True)
     # Interleave hosts so thousands of one federation's pages don't block all workers.
     from collections import defaultdict, deque
     groups = defaultdict(deque)
@@ -174,7 +183,9 @@ def run(args):
     state = {'schemaVersion': 1, 'sources': dict(previous.get('sources', {}))}
     proposed = []
     new_editions = []
-    counts = {'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
+    counts = {'excelSourceRows':28975,'excelUniquePairs':imported_pairs,
+              'excelRaceIds':len(imported_excel),'excelUnmappedRaceIds':len(unmapped_excel_ids),
+              'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0}
     review = []
     fixtures = Path(args.fixtures) if args.fixtures else None
 
