@@ -249,3 +249,8 @@ export function englishRaceNote(value: string): string {
   if (uci) return `${uci[1]} UCI placings published; completeness of the results sheet not established`;
   return NOTES[value] ?? value;
 }
+/** Translate archive placeholders while preserving official venue names. */
+export function englishPlace(value: string | null | undefined): string {
+  if (!value || /^(ni navedeno|ni potrjeno|neznano)$/i.test(value.trim())) return 'Venue not specified';
+  return value;
+}

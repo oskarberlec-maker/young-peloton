@@ -1,3 +1,4 @@
+import { englishPlace } from '@/lib/u19-english';
 import { loadSourceSyncStatus, sourceReportUrl, sourceHistoryUrl, type SourceSyncStatus } from '@/lib/source-updates';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,6 +17,9 @@ import { Input } from '@/components/ui/input';
 import { Link } from '@tanstack/react-router';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { downloadIcs } from '@/lib/race-calendar';
+import { ENTRY_OPTIONS, entryLabel, getRaceEntry, matchesEntry } from '@/lib/race-entry';
+import { raceDetailUrl, safeCalendarReturn } from '@/lib/race-navigation';
+import { sourceLabel } from '@/lib/source-label';
 
 export const Route = createFileRoute('/')({
   head:()=>({ meta:[
@@ -44,7 +48,7 @@ function downloadCsv(races:U19Race[]) {
     ['Race ID',r=>r.id],['Race',r=>r.name],['Country',r=>countryLabel(r.countryCode,r.country)],['Location',r=>r.place],
     ['Date',r=>r.date],['End date',r=>r.enddate],['Category',r=>englishCategory(r.sex)],['Type',r=>englishRaceType(r.type)],
     ['U19 status',r=>englishConfirmation(r.confirmation)],['Race level',r=>getRaceLevel(r).label],['Race sublevel',r=>getRaceLevel(r).subtype],['Level evidence type',r=>getRaceLevel(r).method],['Level basis',r=>getRaceLevel(r).basis],['Race state',r=>r.state],['Notice',r=>englishRaceNote(r.status)],
-    ['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],['Results',r=>r.resultUrl],
+    ['Entry method',r=>entryLabel(r)],['Entry evidence',r=>getRaceEntry(r)?.sourceUrl||''],['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],['Results',r=>r.resultUrl],
   ];
   const safeCell=(value:string)=>{
     let s=value||'';
@@ -74,6 +78,8 @@ function Index(){
   const [statesSelected,setStatesSelected]=useState<string[]>(['active']);const [from,setFrom]=useState('');const [to,setTo]=useState('');
   const [raceTypesSelected,setRaceTypesSelected]=useState<string[]>([]);
   const [levelsSelected,setLevelsSelected]=useState<RaceLevel[]>([]);
+  const [entrySelected,setEntrySelected]=useState<string[]>([]);
+  const [mapCalendarReturn,setMapCalendarReturn]=useState('/');
   const [year,setYear]=useState(2026);
   const [filtersReady,setFiltersReady]=useState(false);
   const [calendarReturnTo,setCalendarReturnTo]=useState('/');
@@ -87,7 +93,7 @@ function Index(){
   const [pageSize,setPageSize]=useState(PAGE_SIZE);
 
 
-  const jump=(target:'calendar'|'month'|'map')=>{setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
+  const jump=(target:'calendar'|'month'|'map')=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');url.searchParams.delete('mapReturnTo');window.history.replaceState(window.history.state,'',url.toString());setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
   const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
   useEffect(()=>{
     const p=new URLSearchParams(window.location.search);
@@ -97,6 +103,8 @@ function Index(){
     };
     if(p.get('year')==='2027')setYear(2027);
     if(p.has('race'))setLinkedRace(p.get('race')||'');
+    setMapCalendarReturn(safeCalendarReturn(p.get('mapReturnTo'))||'/');
+    setEntrySelected(parse('entry',ENTRY_OPTIONS.map(x=>x.value)));
     const rawCountries=p.getAll('country').flatMap(v=>v.split(',')).filter(Boolean);
     if(rawCountries.length)setCountriesSelected([...new Set(rawCountries.filter(x=>x!=='all'))]);
     setMonthsSelected(parse('month',Array.from({length:12},(_,i)=>String(i+1))));
@@ -117,7 +125,7 @@ function Index(){
   useEffect(()=>{
     if(!filtersReady)return;
     const url=new URL(window.location.href);
-    for(const key of ['year','country','month','category','verification','state','from','to','q','type','level'])url.searchParams.delete(key);
+    for(const key of ['year','country','month','category','verification','state','from','to','q','type','level','entry'])url.searchParams.delete(key);
     if(year===2027)url.searchParams.set('year','2027');
     for(const [key,items,defaults] of [
       ['country',countriesSelected,[]],
@@ -127,12 +135,14 @@ function Index(){
       ['state',statesSelected,['active']],
       ['type',raceTypesSelected,[]],
       ['level',levelsSelected,[]],
+      ['entry',entrySelected,[]],
     ] as [string,string[],string[]][])if(items.join(',')!==defaults.join(',')){if(items.length===0&&defaults.length)url.searchParams.set(key,'all');else items.forEach(item=>url.searchParams.append(key,item));}
     if(from)url.searchParams.set('from',from);if(to)url.searchParams.set('to',to);if(query)url.searchParams.set('q',query);
     for(const [k,v] of [['view',tab==='map'?'map':tab==='month'?'month':''],['upcoming',futureOnly?'1':''],['saved',savedOnly?'1':''],['archived',showArchived?'1':''],['page',page>1?String(page):''],['size',pageSize!==PAGE_SIZE?String(pageSize):'']]){if(v)url.searchParams.set(k!,v);else url.searchParams.delete(k!);}
+    if(linkedRace)url.searchParams.set('race',linkedRace);else {url.searchParams.delete('race');url.searchParams.delete('mapReturnTo');}
     setCalendarReturnTo(url.pathname+url.search);
     if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());
-  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,filtersReady,tab,futureOnly,savedOnly,showArchived,page,pageSize]);
+  },[year,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,filtersReady,tab,futureOnly,savedOnly,showArchived,page,pageSize,entrySelected,linkedRace]);
   useEffect(()=>{
     if(!filtersReady)return;
     const controller=new AbortController();
@@ -161,18 +171,22 @@ function Index(){
       if(statesSelected.length&&!statesSelected.includes(r.state))return false;
       if(raceTypesSelected.length&&!raceTypesSelected.some(t=>raceTypeLabel(r).includes(t)))return false;
       if(levelsSelected.length&&!levelsSelected.includes(getRaceLevel(r).level))return false;
+      if(!matchesEntry(r,entrySelected))return false;
       if((from||to)&&!raceOverlaps(r,from,to))return false;
       if(q&&!`${r.name} ${r.place} ${r.region} ${r.country} ${countryLabel(r.countryCode,r.country)} ${englishCategory(r.sex)} ${englishRaceType(r.type)} ${englishConfirmation(r.confirmation)} ${englishRaceNote(r.status)}`.toLocaleLowerCase().includes(q))return false;
       return true;
     });
-  },[races,showArchived,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,futureOnly,savedOnly,saved,linkedRace,year]);
+  },[races,showArchived,countriesSelected,monthsSelected,categoriesSelected,statusesSelected,statesSelected,from,to,query,raceTypesSelected,levelsSelected,futureOnly,savedOnly,saved,linkedRace,year,entrySelected]);
+  // The map shows the whole season, independent of hidden list filters.
+  const mapRaces=useMemo(()=>races.filter(r=>linkedRace?r.id===linkedRace:visibleRace(r)),[races,linkedRace]);
+  const displayedRaces=tab==='map'?mapRaces:filtered;
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
   const currentPage=Math.min(page,pages);
   const shown=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
-  const reset=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
+  const reset=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setQuery('');setCountriesSelected([]);setMonthsSelected([]);setCategoriesSelected([]);setStatusesSelected(['confirmed']);setStatesSelected(['active']);setFrom('');setTo('');setRaceTypesSelected([]);setLevelsSelected([]);setEntrySelected([]);setFutureOnly(false);setSavedOnly(false);setShowArchived(false);setPage(1);};
   const resetPage=()=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');if(url.toString()!==window.location.href)window.history.replaceState(window.history.state,'',url.toString());setPage(1);};
   const controlClass='h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground';
-  const dateForCalendar = filtered;
+  const dateForCalendar = displayedRaces;
   return <main className="min-h-screen bg-background text-foreground">
     <header className="yp-site-header border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-5 py-4">
@@ -186,7 +200,7 @@ function Index(){
         <nav aria-label="Primary" className="ml-auto flex flex-wrap items-center gap-1 text-sm sm:gap-2">
           <button type="button" onClick={()=>jump('calendar')} className={tab==='calendar'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Races</button>
           <button type="button" onClick={()=>jump('month')} className={tab==='month'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Calendar</button>
-          <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}>Map</button>
+          <button type="button" onClick={()=>jump('map')} className={tab==='map'?'yp-nav-link yp-nav-active':'yp-nav-link'}><MapPinned size={15} className="mr-1 inline"/> All races map</button>
           <InstallAppButton />
           <Link to="/season" className="ml-1 inline-flex items-center rounded-md bg-slate-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-sky-900 sm:ml-3 sm:px-4">Saved ({saved.length}) <ArrowUpRight size={14} className="ml-1 hidden sm:inline"/></Link>
         </nav>
@@ -229,6 +243,7 @@ function Index(){
           </select>
           {year===2027&&<span role="status" className="text-sm text-amber-800">Known European races with officially published 2027 dates.</span>}
         </div>
+        {tab==='map'&&linkedRace&&<a href={raceDetailUrl(linkedRace,mapCalendarReturn)} className="mb-4 inline-flex rounded-md border border-sky-300 px-4 py-2 font-semibold text-sky-800 hover:bg-sky-50">← Back to race details</a>}
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
@@ -247,16 +262,19 @@ function Index(){
             {' '}<a className="text-sky-700 underline" href={sourceReportUrl} target="_blank" rel="noopener noreferrer">Check report</a>
             {' · '}<a className="text-sky-700 underline" href={sourceHistoryUrl} target="_blank" rel="noopener noreferrer">Change history</a>
           </div>
-          <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{filtered.length.toLocaleString('en')} matching records</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={dateForCalendar.length===0}><ArrowDownToLine size={16}/> CSV</Button>
+          <nav aria-label="Race views" className="flex w-full flex-wrap gap-2">{([['calendar','List'],['month','Calendar'],['map','All races map']] as const).map(([view,label])=><Button key={view} variant={tab===view?'default':'outline'} aria-pressed={tab===view} onClick={()=>jump(view)}>{view==='map'&&<MapPinned size={16}/>} {label}</Button>)}</nav>
+          {tab==='map'&&<p className="w-full text-sm text-slate-600">{linkedRace?'Location of the selected race.':'All distinct races in this season, including labelled cancellations. List filters do not apply to this map.'}</p>}
+          <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{displayedRaces.length.toLocaleString('en')} {tab==='map'?'race records':'matching records'}</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={dateForCalendar.length===0}><ArrowDownToLine size={16}/> CSV</Button>
           <Button variant="outline" onClick={()=>downloadIcs(dateForCalendar)} disabled={dateForCalendar.length===0}><CalendarDays size={16}/> Export calendar (.ics)</Button></div>
         </div>
-        <div className="yp-filter-panel mb-7 rounded-lg border border-slate-200 bg-white p-5 md:p-6">
+        {tab!=='map'&&<div className="yp-filter-panel mb-7 rounded-lg border border-slate-200 bg-white p-5 md:p-6">
           <div className="mb-3 flex items-center justify-between sm:hidden"><strong className="text-sm">Find races</strong><button type="button" className="rounded-md border px-3 py-2 text-sm" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}>{advanced?'Hide advanced filters':'Advanced filters'}</button></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block text-sm"><span className="mb-1 block font-medium">Search name or place</span><div className="relative"><Search size={16} className="absolute left-3 top-3 text-muted-foreground"/><Input value={query} onChange={e=>{setQuery(e.target.value);resetPage();}} placeholder="Race, town, region…" className="pl-9"/></div></label>
             <MultiRaceFilter label="Countries" choices={countries.map(([value,label])=>({value,label}))} selected={countriesSelected} onChange={v=>{setCountriesSelected(v);resetPage();}} searchable/>
             <MultiRaceFilter label="Months" choices={MONTHS.slice(1).map((label,i)=>({value:String(i+1),label}))} selected={monthsSelected} onChange={v=>{setMonthsSelected(v);resetPage();}}/>
             <MultiRaceFilter label="Categories" choices={[{value:'men',label:'Men'},{value:'women',label:'Women'}]} selected={categoriesSelected} onChange={v=>{setCategoriesSelected(v);resetPage();}}/>
+            <MultiRaceFilter label="Entry method" choices={ENTRY_OPTIONS} selected={entrySelected} onChange={v=>{setEntrySelected(v);resetPage();}}/>
             <MultiRaceFilter label="Race level" choices={LEVEL_OPTIONS} selected={levelsSelected} onChange={v=>{setLevelsSelected(v as RaceLevel[]);resetPage();}}/>
             <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="U19 verification" choices={statusOptions.filter(([value])=>value!=='all').map(([value,label])=>({value,label}))} selected={statusesSelected} onChange={v=>{setStatusesSelected(v);resetPage();}}/></div>
             <div className={advanced?'block':'hidden sm:block'}><MultiRaceFilter label="Race state" choices={[{value:'active',label:'Active'},{value:'cancelled',label:'Cancelled'},...(showArchived?[{value:'merged',label:'Merged / archived'}]:[])]} selected={statesSelected} onChange={v=>{setStatesSelected(v);resetPage();}}/></div>
@@ -273,9 +291,9 @@ function Index(){
             <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setStatesSelected(['active']);resetPage();}} />Show archived merged / duplicate source records ({manifest.mergedRecords+manifest.semanticDuplicateRecords})</label>
             <button type="button" onClick={reset} className="inline-flex items-center gap-2 text-sm text-sky-700 hover:underline"><RotateCcw size={14}/> Reset filters</button>
           </div>
-        </div>
+        </div>}
         {saveError&&<p role="alert" className="mb-4 text-sm text-red-700">{saveError}</p>}
-        {tab==='map'?<U19Map races={filtered} />:tab==='month'?<RaceMonthCalendar races={filtered} year={year} saved={saved} onToggleSaved={toggleSaved}/>:<>
+        {tab==='map'?<U19Map races={mapRaces} returnTo={calendarReturnTo} focusRaceId={linkedRace} />:tab==='month'?<RaceMonthCalendar races={filtered} year={year} saved={saved} onToggleSaved={toggleSaved}/>:<>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-600" role="status">
               Showing {filtered.length?(currentPage-1)*pageSize+1:0}–{Math.min(currentPage*pageSize,filtered.length)} of {filtered.length.toLocaleString('en')} races
@@ -296,20 +314,21 @@ function Index(){
                 <p className="mt-1 font-mono text-[11px] text-slate-500">ID: {r.id}</p>
                 <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span>{getRaceLevel(r).level!=='unverified'&&getRaceLevel(r).level!=='regional'&&<span className="ml-2 text-[11px] text-slate-500">{getRaceLevel(r).subtype}</span>}</div>
                 <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year,r)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
-                <p className="mt-2 text-sm text-muted-foreground">{r.place||'Venue not specified'} · {countryLabel(r.countryCode,r.country)}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{englishPlace(r.place)} · {countryLabel(r.countryCode,r.country)}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='active'&&<span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Listed · occurrence not verified</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
+                <p className="mt-3 text-xs"><span className="font-semibold">Entry:</span> {entryLabel(r)}</p>
                 {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}
                 {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
                 {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>Original source</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>U19 evidence</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link><RaceSourceLinks raceId={r.id}/></div>
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>{sourceLabel(r.sourceUrl)}</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>{sourceLabel(r.proofUrl,'U19 eligibility evidence')}</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link><RaceSourceLinks raceId={r.id}/></div>
             </article>)}
           </div>
           {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}
           {filtered.length===0&&<p className="rounded-xl border border-border p-10 text-center text-muted-foreground">No races match these filters. Try a different date, country or verification status.</p>}
           {pages>1&&<nav aria-label="Race results pages" className="mt-8 flex items-center justify-center gap-4"><Button disabled={currentPage<=1} variant="outline" onClick={()=>setPage(p=>Math.max(1,p-1))}>Previous</Button><span className="text-sm tabular-nums">Page {currentPage} of {pages}</span><Button variant="outline" disabled={currentPage>=pages} onClick={()=>setPage(p=>Math.min(pages,p+1))}>Next</Button></nav>}
         </>}
-        <CountryEntryGuide codes={countriesSelected}/>
+        {tab!=='map'&&<CountryEntryGuide codes={countriesSelected}/>}
         <aside className="mt-10 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0"/><div><strong className="text-foreground">Source and verification notes.</strong> The {year} source snapshot was updated {manifest.asOf}. It is not marked complete. Dates are the dates listed in the source archive, not independently confirmed event outcomes. {manifest.missingDates} source entries have no exact date; those show “Date unconfirmed.” U19 participation is not verified for every listed event. Cancelled races are labelled and excluded from neither the total nor the calendar. {manifest.mergedRecords} merged and {manifest.semanticDuplicateRecords} duplicate source records remain available in the archive filter but are hidden by default to prevent double counting. The map uses approximate settlement / area / country centres, not race start coordinates. Baseline 2026 race levels follow the Young Peloton classification workbook; 2027 UCI levels follow the official UCI calendar; other 2027 levels remain unverified; club/training events are grouped together with regional events as Regional. Levels marked unverified remain unknown, and original links have not all been reviewed live.</div></div>
         </aside>

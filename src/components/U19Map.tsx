@@ -1,6 +1,9 @@
+import { englishPlace } from '@/lib/u19-english';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { U19Race } from '@/lib/u19-data';
-import { niceDate, safeUrl } from '@/lib/u19-data';
+import { niceDate, safeUrl, countryLabel } from '@/lib/u19-data';
+import { Link } from '@tanstack/react-router';
+import { sourceLabel } from '@/lib/source-label';
 import { mappedRaceLocation } from '@/lib/country-centres';
 import { englishCategory, englishConfirmation, englishRaceType } from '@/lib/u19-english';
 
@@ -34,13 +37,14 @@ function loadLeaflet() {
 }
 
 type Point = { lat:number; lon:number; precision:string; place:string; races:U19Race[] };
-export function U19Map({races}:{races:U19Race[]}) {
+export function U19Map({races,returnTo='/',focusRaceId}:{races:U19Race[];returnTo?:string;focusRaceId?:string}) {
   const holder=useRef<HTMLDivElement>(null);
   const mapRef=useRef<any>(null);
   const layerRef=useRef<any>(null);
   const [error,setError]=useState('');
   const [ready,setReady]=useState(false);
   const [selected,setSelected]=useState<Point|null>(null);
+  const [selectedLimit,setSelectedLimit]=useState(40);
   const locations=useMemo(()=>{
     const grouped = new Map<string,Point>();
     for(const r of races) {
@@ -48,7 +52,7 @@ export function U19Map({races}:{races:U19Race[]}) {
       if (!location) continue;
       const key=`${location.lat.toFixed(5)}:${location.lon.toFixed(5)}`;
       let point=grouped.get(key);
-      if(!point){point={lat:location.lat,lon:location.lon,precision:location.precision,place:location.estimated?r.country:(r.place||r.country),races:[]};grouped.set(key,point);}
+      if(!point){point={lat:location.lat,lon:location.lon,precision:location.precision,place:location.estimated?countryLabel(r.countryCode,r.country):(r.place&&englishPlace(r.place)!=='Venue not specified'?englishPlace(r.place):countryLabel(r.countryCode,r.country)),races:[]};grouped.set(key,point);}
       point.races.push(r);
     }
     return [...grouped.values()];
@@ -83,13 +87,16 @@ export function U19Map({races}:{races:U19Race[]}) {
       const icon=L.divIcon({className:'',iconSize:[size,size],iconAnchor:[size/2,size/2],
         html:`<span style="display:block;width:${size}px;height:${size}px;border-radius:50%;background:${fill};border:2px solid ${outline};box-shadow:0 1px 5px #0005"></span>`});
       const marker=L.marker([point.lat,point.lon],{icon});
-      marker.on('click',()=>{setSelected(point);requestAnimationFrame(()=>document.getElementById('selected-map-location')?.scrollIntoView({behavior:'smooth',block:'nearest'}));});
+      marker.on('click',()=>{setSelected(point);setSelectedLimit(40);requestAnimationFrame(()=>document.getElementById('selected-map-location')?.scrollIntoView({behavior:'smooth',block:'nearest'}));});
       return marker;
     });
     layer.addLayers(markers);
-  },[locations,ready]);
-  useEffect(()=>{setSelected(null);},[races]);
-  const listed=selected?.races.slice(0,40)||[];
+    const focused=focusRaceId?locations.find(point=>point.races.some(r=>r.id===focusRaceId)):undefined;
+    setSelected(focused||null);setSelectedLimit(40);
+    if(focused)mapRef.current?.setView([focused.lat,focused.lon],focused.precision==='country'?6:11);
+    else mapRef.current?.setView([49.5,13],4);
+  },[locations,ready,focusRaceId]);
+  const listed=selected?.races.slice(0,selectedLimit)||[];
   const locatedCount=useMemo(()=>races.filter(r=>mappedRaceLocation(r)!==null).length,[races]);
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"><span>{locations.length.toLocaleString('en')} mapped places · {locatedCount.toLocaleString('en')} race records with approximate map markers</span><span>Dots show approximate locations, not verified start lines. Amber = country-level only.</span></div>
@@ -102,12 +109,14 @@ export function U19Map({races}:{races:U19Race[]}) {
       {selected.precision==='country'&&<p className="text-amber-700 text-sm">Only a country-level location is known for these records.</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {listed.map(r=><div key={r.id} className="rounded-md border border-border px-3 py-2 text-sm">
-          <div className="font-semibold">{r.name}</div><div className="text-muted-foreground">{niceDate(r.date)} · {englishCategory(r.sex)}{r.type?` · ${englishRaceType(r.type)}`:''}</div>
+          <Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo}} className="font-semibold text-sky-800 underline">{r.name}</Link><div className="text-muted-foreground">{niceDate(r.date)} · {englishCategory(r.sex)}{r.type?` · ${englishRaceType(r.type)}`:''}</div>
           <div className="text-xs text-muted-foreground">{englishConfirmation(r.confirmation)}</div>
-          {safeUrl(r.sourceUrl)&&<a className="text-sky-700 underline" href={r.sourceUrl} target="_blank" rel="noopener noreferrer">Source ↗</a>}
+          {r.state==='cancelled'&&<p className="text-xs font-semibold text-red-700">Cancelled</p>}
+          <Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo}} className="mr-4 inline-block py-2 text-sky-800 underline">View race details →</Link>
+          {safeUrl(r.sourceUrl)&&<a className="text-sky-700 underline" href={r.sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel(r.sourceUrl)} ↗</a>}
         </div>)}
       </div>
-      {selected.races.length>listed.length&&<p className="mt-2 text-xs text-muted-foreground">Showing first {listed.length} records at this location. Filter the calendar for more.</p>}
+      {selected.races.length>listed.length&&<button type="button" onClick={()=>setSelectedLimit(n=>n+40)} className="mt-3 rounded-md border px-3 py-2 text-sm">Show more races ({selected.races.length-listed.length} remaining)</button>}
     </section>}
   </div>;
 }
