@@ -215,6 +215,7 @@ function Index(){
           <p className="mt-6 max-w-2xl text-[15px] leading-7 text-slate-300 md:text-base">Search European junior cycling events by country, date and race type. Compare verified race information and plan your season in one place.</p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Button onClick={()=>jump('calendar')} className="h-11 rounded-md bg-cyan-300 px-5 font-bold text-slate-950 hover:bg-cyan-200"><CalendarDays size={17}/> Explore races</Button>
+            <Button onClick={()=>jump('map')} className="h-11 rounded-md border border-white/30 bg-transparent px-5 font-semibold text-white shadow-none hover:border-cyan-300 hover:bg-white/10"><MapPinned size={17}/> All races map</Button>
             <Link to="/season" className="inline-flex h-11 items-center rounded-md border border-white/30 px-5 text-sm font-semibold text-white transition hover:border-cyan-300 hover:bg-white/10">Saved races on this device <ArrowUpRight size={16} className="ml-2"/></Link>
           </div>
           <p className="mt-6 text-[11px] leading-5 text-slate-400">Race information is sourced from event listings. Always confirm entry details with the organiser.</p>
