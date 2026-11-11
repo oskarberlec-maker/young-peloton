@@ -119,3 +119,17 @@ Publishing requires a complete scan attempt and the expected previous data-branc
 - Disable the workflow in GitHub Actions to pause checking. Existing verified corrections continue to be served.
 
 GitHub documentation: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
+# Reader version 3: reliable 2027 monitoring
+
+The scanner still runs on the existing daily schedule and preserves the 2026 archive. It now:
+
+- Reuses a single parsed page for every race associated with that source.
+- Gives explicit 2027 URLs and known 2027 editions priority. It follows at most three explicit, same-origin 2027 links from a known race page, with a budget of 200 new URLs per run and one discovery hop. URLs are never guessed by replacing the year. Discovered URLs and their parent race associations persist in `state.json` and are revisited on future runs even when the parent returns HTTP 304.
+- Accepts a changed federation ID on a discovered edition page only when the exact known race heading and explicit 2027 dates are verified. FFC also requires the explicit 2027 season. Other structured event readers retain their identity/date validation.
+- Retries timeouts and selected transient HTTP errors at most twice. It never retries HTTP 403, 404 or 429. Three consecutive 403 responses from a host defer its remaining URLs for that run; a 429 stops requests to that host immediately. Long/date-based `Retry-After` pauses are recorded and persist across runs. No access-control bypass is attempted.
+- Compares all current supported date evidence, including sources that confirm the existing date and cached 304 observations. Conflicting date pairs block an update or a new edition and are recorded with their evidence. Resolving a conflict is re-evaluated even if one source remains unchanged.
+- Separates historical 2026 page changes from 2027 review issues. Previously observed 2027 evidence disappearing remains an issue on later runs; it is never silently treated as an irrelevant archive page or a race cancellation.
+
+Reports include the start and finish times, duration, HTTP request/retry counts, unchanged responses, historical sources, discovered 2027 pages, date conflicts, real errors and deferred sources. `complete` means every registered URL has an accounted outcome, not that every URL was successfully fetched. `successful + errors + deferred == attempted`; deferred URLs are never counted as successful reads. `needsReview` excludes temporary host deferrals, while `report.json` preserves those individual outcomes and `deferredHosts` explains the host-level decisions.
+
+New fields are optional in the website reader, so the last version-2 report remains readable until a version-3 full scan finishes. The existing publication rule still rejects fixture and limited scans. All checked dates still need a supported source with an exact race identity and an explicit 2027 date range; PDFs and unsupported page layouts remain review-only.

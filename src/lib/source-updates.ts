@@ -10,6 +10,9 @@ export type SourceSyncStatus = {
   legacyIdsMapped?: number; legacyIdsUnmapped?: number; legacyAmbiguousIds?: number;
   reviewCategories?: Record<string,number>;
   topErrorHosts?: {host:string;count:number}[];
+  deferred?: number; notModified?: number; historicalSources?: number;
+  discovered2027Sources?: number; dateConflicts?: number;
+  retries?: number; durationSeconds?: number; startedAt?: string; readerVersion?: number;
 };
 type Override = { fields: Partial<U19Race>; updatedAt: string; sourceUrl: string; adapter: string };
 const fields = new Set(['date','enddate','name','place','type','state','liveLevel','uciClass','lat','lon','precision']);
