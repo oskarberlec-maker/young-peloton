@@ -1,4 +1,4 @@
-"""Follow explicit next-edition links on known race pages, never guess URLs."""
+"""Follow evidence-linked next-edition links on known race pages, never guess URLs."""
 import re
 from urllib.parse import urljoin, urlsplit
 from core import canonical, normalized
@@ -17,12 +17,14 @@ def edition_links(page, race, source_url):
         parsed = urlsplit(url)
         if (parsed.scheme, parsed.netloc) != (origin.scheme, origin.netloc) or url == canonical(source_url):
             continue
-        if not re.search(r'(?<!\d)2027(?!\d)', parsed.path + '?' + parsed.query):
-            continue
         if re.search(r'\.(pdf|zip|jpg|png|ics)$', parsed.path, re.I):
             continue
         anchor = normalized(text)
-        if not known_heading and not (name and name in anchor and '2027' in anchor):
+        year_link = bool(re.search(r'(?<!\d)2027(?!\d)', parsed.path + '?' + parsed.query + ' ' + anchor))
+        exact_event_link = bool(name and (anchor == name or anchor == name + ' 2027'))
+        # Discovery is only a lead. Destination readers must still verify dates
+        # and identity. Generic navigation is never followed without season evidence.
+        if not ((known_heading and year_link) or (exact_event_link and ('2027' in ' '.join(page.lines) or year_link))):
             continue
         if url not in found:
             found.append(url)
