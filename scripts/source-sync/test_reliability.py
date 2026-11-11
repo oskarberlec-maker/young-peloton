@@ -4,6 +4,7 @@ from email.message import Message
 import hashlib
 import io
 import json
+import socket
 from pathlib import Path
 import tempfile
 import unittest
@@ -36,6 +37,14 @@ class FetchReliability(unittest.TestCase):
         fetcher.safe = Mock()
         fetcher.opener = Mock(open=Mock(side_effect=results))
         return fetcher
+
+    @patch('transport.time.sleep')
+    def test_temporary_dns_failure_retries_before_request(self, sleep):
+        fetcher = self.fetcher([response()])
+        fetcher.safe.side_effect = [socket.gaierror(socket.EAI_AGAIN, 'Temporary failure in name resolution'), None]
+        self.assertEqual(fetcher.get('https://example.org/race', {})['httpStatus'], 200)
+        self.assertEqual(fetcher.requests, 1)
+        self.assertEqual(fetcher.retries, 1)
 
     @patch('transport.time.sleep')
     def test_transient_failure_retries_then_succeeds(self, sleep):

@@ -8,6 +8,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import time
 from urllib.parse import urlsplit
@@ -122,7 +123,7 @@ def run(args):
     groups = defaultdict(deque)
     for u in sorted(registry):
         groups[urlsplit(u).hostname].append(u)
-    priority = [u for u in registry if '2027' in u or any(by_id.get(i, {}).get('date', '').startswith('2027-') for i in registry[u]['races'])]
+    priority = [u for u in registry if re.search(r'(?<!\d)2027(?!\d)', u) or any(by_id.get(i, {}).get('date', '').startswith('2027-') for i in registry[u]['races'])]
     urls = list(priority)
     priority = set(priority)
     while groups:
@@ -424,7 +425,7 @@ def run(args):
             category = 'timeout'
         elif 'exceeds 8 MiB' in reason:
             category = 'too_large'
-        elif 'HTTP Error' in reason or '<urlopen error' in reason:
+        elif 'HTTP Error' in reason or '<urlopen error' in reason or 'name resolution' in reason.lower() or 'Name or service not known' in reason:
             category = 'other_network_error'
         elif 'ambiguous' in reason.lower() or 'conflict' in reason.lower() or 'contradict' in reason.lower():
             category = 'identity_conflict'

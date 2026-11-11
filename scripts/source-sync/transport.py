@@ -54,7 +54,6 @@ class Fetcher:
                 if self.cooldowns.get(host, 0) > time.time():
                     self.blocked[host] = 'Server Retry-After pause is still active; host sources deferred'
                     raise DeferredSource(self.blocked[host])
-                self.safe(url)
                 for attempt in range(3):
                     time.sleep(max(0, 1.0 - (time.monotonic() - self.last.get(host, 0))))
                     headers = {'User-Agent': UA, 'Accept': 'text/html,application/json,application/pdf;q=0.8,*/*;q=0.5'}
@@ -64,6 +63,7 @@ class Fetcher:
                         headers['If-Modified-Since'] = previous['lastModified']
                     retry_delay = 2 ** attempt
                     try:
+                        self.safe(url)
                         with self.lock:
                             self.requests += 1
                         response = self.opener.open(urllib.request.Request(transport_url(url), headers=headers), timeout=25)
@@ -107,8 +107,8 @@ class Fetcher:
                                 self.remember_cooldown(host, retry_after)
                                 raise
                             retry_delay = max(retry_delay, int(retry_after))
-                    except (urllib.error.URLError, TimeoutError, ConnectionError):
-                        if attempt == 2:
+                    except (urllib.error.URLError, TimeoutError, ConnectionError, socket.gaierror) as error:
+                        if attempt == 2 or (isinstance(error, socket.gaierror) and error.errno != socket.EAI_AGAIN):
                             raise
                     finally:
                         self.last[host] = time.monotonic()
