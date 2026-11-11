@@ -18,10 +18,11 @@ from core import canonical, Page
 from catalogue import linked_source_catalogue, excel_result_sources
 from transport import Fetcher, DeferredSource
 from discovery import edition_links
+from pdf_evidence import pdf_evidence
 from conflicts import reconcile
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 3
+READER_VERSION = 4
 MAX_DISCOVERED_PER_RUN = 200
 
 
@@ -164,6 +165,8 @@ def run(args):
             raise ValueError('2027 date found but U19 eligibility needs confirmation')
         return [{'newEdition': edition(race, fields, url, now), 'sourceUrl': url, 'adapter': observed['adapter']}], observed
 
+    uci_responses = {}
+
     def check(url):
         prev = previous.get('sources', {}).get(url, {})
         record = {**prev, 'observations': dict(prev.get('observations', {})), 'lastAttemptAt': now}
@@ -177,6 +180,8 @@ def run(args):
             else:
                 # Re-read after the reader upgrade even when the source's ETag is unchanged.
                 result = fetcher.get(url, prev if prev.get('readerVersion') == READER_VERSION else {})
+            if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
+                uci_responses[url] = dict(result)
             if result.get('notModified'):
                 # 304 means the previous successful representation is still current,
                 # not that an unsupported page has suddenly been parsed.
@@ -193,6 +198,7 @@ def run(args):
                         record.setdefault('observations', {})[rid] = evidence
                 pending_review = {'sourceUrl': url, 'reason': 'Previously detected source change still needs a supported reader or review'} if record.get('needsReview') else None
                 return url, record, updates, pending_review, []
+            record.pop('uciDetail', None)
             body = result.pop('body')
             raw_hash = hashlib.sha256(body).hexdigest()
             decoded = body.decode('utf-8', errors='replace')
@@ -202,6 +208,17 @@ def run(args):
                 page = Page(decoded)
                 # Exclude scripts/tokens and style churn from unsupported-page notices.
                 page_hash = hashlib.sha256(('\n'.join(page.lines) + json.dumps(page.ld, sort_keys=True) + json.dumps(page.props, sort_keys=True)).encode()).hexdigest()
+            if result['contentType'] == 'application/pdf':
+                try:
+                    evidence = pdf_evidence(body)
+                except ValueError as error:
+                    evidence = {'has2027': False, 'snippets': [], 'publication': 'manual-review-only', 'error': str(error)}
+                record.update(result, readerVersion=READER_VERSION, hash=raw_hash, rawHash=raw_hash,
+                              status='ok', lastCheckedAt=now, observations={}, supportedRecords=0,
+                              notModified=False, changed=False, needsReview=True, pdfEvidence=evidence,
+                              targetYearEvidence=evidence['has2027'])
+                return url, record, [], {'sourceUrl': url, 'reason': 'PDF calendar requires manual identity and category review',
+                                         'pdfEvidence': evidence}, []
             observations = {}
             updates, parse_errors = [], []
             supported = 0
@@ -241,12 +258,14 @@ def run(args):
                 # For supported readers, actual field changes are the meaningful signal.
                 changed = bool(updates or parse_errors)
             needs_review = bool((target_year and not supported) or parse_errors or result['redirectedHost'] or (changed and not supported and not historical) or (prev.get('observations') and not supported) or (prev.get('needsReview') and not supported and not historical))
-            record.update(result, readerVersion=READER_VERSION, historicalOnly=historical, hadTargetEvidence=bool(had_target_evidence or observations), notModified=False, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
+            record.update(result, readerVersion=READER_VERSION, historicalOnly=historical, targetYearEvidence=target_year, hadTargetEvidence=bool(had_target_evidence or observations), notModified=False, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
             for key in ('error',):
                 record.pop(key, None)
             reason = {'sourceUrl': url, 'reason': 'Changed or unparseable source; no speculative update', 'details': parse_errors[:10]} if needs_review else None
             return url, record, updates, reason, candidates
         except Exception as e:
+            if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
+                uci_responses[url] = e
             # A fetch failure is never an event cancellation or a deletion.
             record.update(status='deferred' if isinstance(e, DeferredSource) else 'error', error=str(e)[:250],
                           httpStatus=getattr(e, 'code', None), changed=False, notModified=False)
@@ -304,14 +323,29 @@ def run(args):
                 if rid not in by_id:
                     counts['calendarNewCandidates2027'] += 1
                 try:
-                    result = fetcher.get(candidate['sourceUrl'], {})
+                    result = uci_responses.get(candidate['sourceUrl'])
+                    if isinstance(result, Exception):
+                        raise result
+                    if result is None:
+                        result = fetcher.get(candidate['sourceUrl'], {})
+                    if result.get('notModified'):
+                        # Cached full UCI validation is required, not just date observations.
+                        cached = previous.get('sources', {}).get(candidate['sourceUrl'], {}).get('uciDetail')
+                        if not cached or any(cached.get(k) != candidate.get(k) for k in ('name', 'date', 'enddate', 'countryCode')):
+                            raise ValueError('UCI cached detail cannot verify changed calendar; manual review required')
+                        detail = cached
+                    else:
+                        detail = None
                     if result.get('redirectedHost'):
                         raise ValueError('UCI competition detail redirected to a different resource')
-                    if result.get('contentType') != 'text/html':
+                    if not result.get('notModified') and result.get('contentType') != 'text/html':
                         raise ValueError('UCI competition detail did not provide HTML')
-                    detail = confirmed_uci_detail(result['body'].decode('utf-8', errors='replace'), candidate)
+                    if not result.get('notModified'):
+                        detail = confirmed_uci_detail(result['body'].decode('utf-8', errors='replace'), candidate)
                     if not detail:
                         raise ValueError('UCI Men Junior calendar and competition detail do not agree on name, date, category or class')
+                    if candidate['sourceUrl'] in state['sources']:
+                        state['sources'][candidate['sourceUrl']]['uciDetail'] = {**detail, 'name': candidate['name'], 'countryCode': candidate['countryCode']}
                     counts['calendarVerified2027'] += 1
                     if rid in by_id:
                         # Exact UCI competition ID resolves the edition even if its name
@@ -358,6 +392,7 @@ def run(args):
 
     existing_identities = {identity(r) for r in races if r['date'].startswith('2027')}
     added = 0
+    added_ids = set()
     # Prefer official UCI competition IDs when both a federation page and
     # the UCI calendar identify the same 2027 edition.
     for item in sorted(new_editions, key=lambda x: (not x['newEdition']['id'].startswith('uci-2027-'), x['newEdition']['id'])):
@@ -372,6 +407,7 @@ def run(args):
         confirmed[race['id']] = race
         existing_identities.add(identity(race))
         added += 1
+        added_ids.add(race['id'])
         history['changes'].append({'at': now, 'raceId': race['id'], 'sourceUrl': item['sourceUrl'], 'adapter': item['adapter'], 'before': None, 'after': race})
     counts['confirmed2027Added'] = added
 
@@ -447,6 +483,20 @@ def run(args):
     counts['topReviewHosts'] = [{'host': h, 'count': n} for h,n in hosts.most_common(20)]
     counts['topErrorHosts'] = [{'host': h, 'count': n} for h,n in host_errors.most_common(15)]
     counts['needsReview'] = sum(not item.get('deferred', False) for item in review)
+    counts['recognized2027Sources'] = counts['supportedSources']
+    counts['sourcesWith2027Evidence'] = sum(rec.get('status') == 'ok' and rec.get('lastCheckedAt') == now and
+                                            bool(rec.get('targetYearEvidence') or rec.get('observations'))
+                                            for rec in state['sources'].values())
+    counts['newlyConfirmedRaceDates'] = added
+    counts['new2027RacesDiscovered'] = sum('newEdition' in item and not item['newEdition'].get('source2026Id')
+                                          and item['newEdition']['id'] in added_ids for item in new_editions)
+    priority_review = sorted((item for item in review if not item.get('deferred')), key=lambda item: (
+        item.get('category') != 'identity_conflict',
+        not state['sources'].get(item.get('sourceUrl'), {}).get('targetYearEvidence', False),
+        item.get('host') not in ('competitions.ffc.fr', 'www.federciclismo.it', 'cycling.vlaanderen', 'mijn.knwu.nl'),
+        item.get('sourceUrl', '')))
+    counts['importantUnresolvedSources'] = [{k: item[k] for k in ('sourceUrl', 'reason', 'category') if k in item}
+                                           for item in priority_review[:20]]
     counts['reportEntries'] = len(review)
     counts['httpRequests'] = fetcher.requests
     counts['retries'] = fetcher.retries

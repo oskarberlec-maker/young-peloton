@@ -133,3 +133,40 @@ The scanner still runs on the existing daily schedule and preserves the 2026 arc
 Reports include the start and finish times, duration, HTTP request/retry counts, unchanged responses, historical sources, discovered 2027 pages, date conflicts, real errors and deferred sources. `complete` means every registered URL has an accounted outcome, not that every URL was successfully fetched. `successful + errors + deferred == attempted`; deferred URLs are never counted as successful reads. `needsReview` excludes temporary host deferrals, while `report.json` preserves those individual outcomes and `deferredHosts` explains the host-level decisions.
 
 New fields are optional in the website reader, so the last version-2 report remains readable until a version-3 full scan finishes. The existing publication rule still rejects fixture and limited scans. All checked dates still need a supported source with an exact race identity and an explicit 2027 date range; PDFs and unsupported page layouts remain review-only.
+
+## Reader version 4: bounded discovery and evidence review
+
+This incremental update retains v3 transport, reconciliation, budgets and publication.
+At implementation time the latest published snapshot was still the 11 November
+05:10 UTC pre-v3 report; its coverage figures cannot measure v3's effectiveness.
+
+- Same-origin discovery accepts explicit 2027 anchor text even without a year in
+  the destination URL, and exact race-name links on an explicitly 2027 calendar.
+  Generic navigation, guessed URLs, cross-origin discovery and additional hops
+  remain excluded. Linked destinations now require junior category and country
+  evidence as well as the existing exact identity and explicit date checks.
+- Existing JSON-LD readers also traverse ItemList/item and subEvent/event wrappers.
+  Calendar events with separate event URLs require exact name/year, country and
+  junior category evidence. FFC/FCI can fall back to this existing reader.
+- Legacy aliases retain their original associations. A unique stable FFC, FCI
+  or KNWU event ID can reconcile URL display/query variants with an active
+  same-country archived event. Shared IDs remain ambiguous; names are not merged.
+- PDF text extraction is **review-only**, with no dates published automatically.
+  Poppler runs in a separate process with a 12-second timeout, 10-second CPU,
+  256 MiB address-space, 2 MiB output and 40-page limit. Scans retain at most
+  20 short 2027 evidence excerpts; encrypted, scanned or malformed files remain
+  review items. No OCR, paid API or new Python dependency is used.
+- UCI detail responses already fetched in the run are reused for calendar
+  verification. Failures are not immediately retried in the calendar phase.
+  A 304 can reuse previously fully validated detail evidence only when the
+  current calendar identity/country/dates still agree; changed calendars wait
+  for fresh detail evidence or review.
+- Retry-After persists even on the last retry/non-retryable response. Reports add
+  recognized2027Sources, sourcesWith2027Evidence, newlyConfirmedRaceDates,
+  new2027RacesDiscovered and importantUnresolvedSources. Evidence mentions are
+  explicitly distinct from validated date observations.
+
+Limitations: PDFs cannot auto-publish; Belgian JSON APIs and JavaScript-only
+Dutch calendars still need validated real response fixtures and dedicated
+readers. No discovery-yield increase is claimed until a full live report exists.
+The daily 04:17 UTC schedule and independent race-source-data publication remain.

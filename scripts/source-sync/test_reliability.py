@@ -96,8 +96,8 @@ class FetchReliability(unittest.TestCase):
 
 class DiscoveryAndConflicts(unittest.TestCase):
     def test_linked_ffc_edition_can_publish_a_new_id_only_with_exact_name_and_season(self):
-        race = {**PipelineReliability.race, 'id': 'FR-FFC-OLD'}
-        text = "<h1>Junior Tour</h1><p>N° d'épreuve</p><p>NEW</p><p>Saison</p><p>2027</p><p>vendredi 07 mai 2027</p><p>Durée</p><p>1 jour</p>"
+        race = {**PipelineReliability.race, 'id': 'FR-FFC-OLD', 'countryCode': 'FR'}
+        text = "<h1>Junior Tour</h1><p>N° d'épreuve</p><p>NEW</p><p>Saison</p><p>2027</p><p>vendredi 07 mai 2027</p><p>Durée</p><p>1 jour</p><p>U19</p>"
         url = 'https://competitions.ffc.fr/2027/NEW/tour/'
         self.assertIsNone(dates_only(text, 'text/html', race, url))
         result = dates_only(text, 'text/html', race, url, linked_edition=True)
@@ -156,7 +156,8 @@ class PipelineReliability(unittest.TestCase):
             path = Path(tmp); fixtures = path / 'fixtures'; fixtures.mkdir()
             self.fixture(fixtures, self.race['sourceUrl'], '<h1>Junior Tour</h1><a href="/2027/tour">2027 edition</a>')
             self.fixture(fixtures, 'https://example.org/2027/tour', '<script type="application/ld+json">' + json.dumps({
-                '@type': 'SportsEvent', 'name': 'Junior Tour', 'startDate': '2027-05-07'}) + '</script>')
+                '@type': 'SportsEvent', 'name': 'Junior Tour', 'startDate': '2027-05-07',
+                'category': 'U19', 'location': {'address': {'addressCountry': 'SI'}}}) + '</script>')
             first = self.scan(path, fixtures)
             self.assertEqual(first['status']['discovered2027Sources'], 1)
             self.assertEqual(first['status']['attempted'], 2)

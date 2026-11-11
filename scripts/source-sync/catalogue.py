@@ -9,7 +9,7 @@ import json
 import re
 from collections import defaultdict
 from core import canonical
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit, parse_qs
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,6 +96,21 @@ def combined_source_catalogue():
     return {rid: sorted(urls) for rid, urls in sorted(merged.items())}
 
 
+def official_event_key(url):
+    """Only stable federation event IDs, never calendar paths or fuzzy names."""
+    p = urlsplit(url)
+    if p.hostname == 'www.federciclismo.it':
+        rid = parse_qs(p.query).get('raceid', [''])[0]
+        return ('IT', rid) if re.fullmatch(r'\d{1,20}', rid) else None
+    if p.hostname == 'competitions.ffc.fr':
+        match = re.search(r'/2026/([A-Za-z0-9-]{4,40})/', p.path)
+        return ('FR', match[1]) if match else None
+    if p.hostname == 'mijn.knwu.nl':
+        match = re.fullmatch(r'/calendar/races/(\d+)/?', p.path)
+        return ('NL', match[1]) if match else None
+    return None
+
+
 def linked_source_catalogue(races):
     """Resolve old xl-* source keys only with unique exact archive-URL evidence.
 
@@ -106,12 +121,16 @@ def linked_source_catalogue(races):
     """
     by_id = {race['id']: race for race in races}
     anchors = defaultdict(set)
+    stable = defaultdict(set)
     for race in races:
         if race['date'].startswith('2027-') or race.get('state') == 'merged' or race.get('duplicate'):
             continue
         try:
             if race.get('sourceUrl'):
                 anchors[canonical(race['sourceUrl'])].add(race['id'])
+                key = official_event_key(race['sourceUrl'])
+                if key and key[0] == race.get('countryCode'):
+                    stable[key].add(race['id'])
         except ValueError:
             pass
 
@@ -120,12 +139,17 @@ def linked_source_catalogue(races):
                'legacyLinksMapped': 0, 'legacyLinksUnmapped': 0,
                'legacyAmbiguousIds': 0}
     for old_id, urls in source_catalogue().items():
+        # Retain the original association even when an additional verified mapping exists.
+        merged.setdefault(old_id, set()).update(urls)
         actual_id = old_id if old_id in by_id else None
         if actual_id is None and old_id.startswith('xl-') and urls:
             try:
                 candidates = anchors.get(canonical(urls[0]), set())
             except ValueError:
                 candidates = set()
+            key = official_event_key(urls[0])
+            if not candidates and key:
+                candidates = stable.get(key, set())
             if len(candidates) == 1:
                 actual_id = next(iter(candidates))
             elif len(candidates) > 1:

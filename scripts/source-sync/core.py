@@ -197,8 +197,29 @@ def walk_events(node):
         types = node.get('@type', [])
         if any(t in ('Event', 'SportsEvent') for t in ([types] if isinstance(types, str) else types)):
             yield node
-        if '@graph' in node:
-            yield from walk_events(node['@graph'])
+        for key in ('@graph', 'itemListElement', 'item', 'subEvent', 'event'):
+            if key in node:
+                yield from walk_events(node[key])
+
+
+def event_context(event, race):
+    """Calendar entries need independent country and junior category evidence."""
+    category = normalized(' '.join(str(event.get(k, '')) for k in ('description', 'category', 'sport')))
+    if not re.search(r'\b(u19|under.?19|junior[es]*)\b', category):
+        return False
+    if re.search(r'\b(mtb|cyclocross|cyclo-cross|bmx|track|piste)\b', category):
+        return False
+    female = bool(re.search(r'\b(women|female|femmes|dames|juniores donne)\b', category))
+    male = bool(re.search(r'\b(men|male|hommes|uomini)\b', category))
+    if (female and not male and race.get('sex') in ('M', 'U19M')) or (male and not female and race.get('sex') in ('Ž', 'U19W')):
+        return False
+    location = event.get('location', {})
+    address = location.get('address', {}) if isinstance(location, dict) else {}
+    country = address.get('addressCountry', '') if isinstance(address, dict) else ''
+    if isinstance(country, dict):
+        country = country.get('identifier', country.get('name', ''))
+    countries = {'france': 'FR', 'belgium': 'BE', 'belgique': 'BE', 'italy': 'IT', 'italia': 'IT', 'netherlands': 'NL', 'nederland': 'NL'}
+    return countries.get(normalized(str(country)), str(country).upper()) == race.get('countryCode')
 
 
 def read_ld(page, race, url):
@@ -215,7 +236,8 @@ def read_ld(page, race, url):
             if start[:4] != (race.get('date') or race.get('enddate', ''))[:4]:
                 continue
             if e.get('url') and canonical(e['url']) != canonical(url):
-                continue
+                if not event_context(e, race):
+                    continue
             matches.append(e)
     if len(matches) != 1:
         return None
@@ -243,9 +265,9 @@ def extract(body, content_type, race, url, page=None):
     if host == 'www.uci.org':
         return read_uci(page, race, url)
     if host == 'competitions.ffc.fr':
-        return read_ffc(page, race, url)
+        return read_ffc(page, race, url) or read_ld(page, race, url)
     if host == 'www.federciclismo.it':
-        return read_fci(page, race, url)
+        return read_fci(page, race, url) or read_ld(page, race, url)
     return read_ld(page, race, url)
 
 

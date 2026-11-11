@@ -88,6 +88,9 @@ class Fetcher:
                             url = canonical(urljoin(url, error.headers.get('Location', '')))
                             previous = {}  # Validators belong to the resource that issued them.
                             break
+                        # Honor Retry-After even on a final retry or non-retryable status.
+                        if error.headers.get('Retry-After'):
+                            self.remember_cooldown(host, error.headers.get('Retry-After'))
                         if error.code == 403:
                             self.denials[host] = self.denials.get(host, 0) + 1
                             if self.denials[host] >= 3:
