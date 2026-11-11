@@ -252,9 +252,15 @@ function Index(){
             {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
             {typeof sourceSync.calendarVerified2027==='number'&&<> {sourceSync.calendarVerified2027} official UCI 2027 competitions verified by ID · {sourceSync.confirmed2027Added??0} confirmed 2027 editions added.</>}
             {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
+            {(sourceSync.deferred??0)>0&&<> {sourceSync.deferred} sources deferred after host access denials or rate limits; these were not rechecked and their previous data is retained.</>}
+            {typeof sourceSync.historicalSources==='number'&&<> {sourceSync.historicalSources.toLocaleString('en')} historical pages without 2027 date evidence.</>}
+            {(sourceSync.discovered2027Sources??0)>0&&<> {sourceSync.discovered2027Sources} newly linked 2027 source pages checked.</>}
+            {(sourceSync.dateConflicts??0)>0&&<strong className="text-amber-800"> {sourceSync.dateConflicts} date conflicts held for review; existing dates retained.</strong>}
+            {typeof sourceSync.durationSeconds==='number'&&<> Completed in {Math.ceil(sourceSync.durationSeconds/60)} min · {sourceSync.notModified??0} unchanged responses · {sourceSync.retries??0} retries for transient failures.</>}
+            {!sourceSync.complete&&<strong className="text-amber-800"> Partial report: not all registered sources were accounted for.</strong>}
             {typeof sourceSync.legacyIdsMapped==='number'&&<> {sourceSync.legacyIdsMapped} legacy source IDs safely linked; {sourceSync.legacyIdsUnmapped??0} unresolved (not used for automatic date corrections).</>}
             {sourceSync.reviewCategories&&<span className="block pt-1">
-              Review breakdown: {Object.entries(sourceSync.reviewCategories).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([kind,count])=>
+              Review breakdown: {Object.entries(sourceSync.reviewCategories).filter(([kind])=>kind!=='deferred_host').sort((a,b)=>b[1]-a[1]).slice(0,5).map(([kind,count])=>
                 <span className="mr-3" key={kind}>{kind.replaceAll('_',' ')}: {count.toLocaleString('en')}</span>)}
             </span>}
             {Date.now()-Date.parse(sourceSync.lastRunAt)>48*60*60*1000&&<strong className="text-amber-800"> Check overdue: last report is more than 48 hours old.</strong>}

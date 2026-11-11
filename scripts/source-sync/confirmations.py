@@ -1,7 +1,7 @@
 """Confirm only explicit 2027 dates for races already known to Young Peloton."""
 import hashlib
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 from core import Page, extract, normalized, uci_dates, validate
 
 YEAR = '2027'
@@ -10,11 +10,25 @@ CALENDAR = 'https://www.uci.org/api/calendar/upcoming?discipline=ROA&raceCategor
 def identity(race):
     return (normalized(race['name']), race.get('countryCode', ''), {'M':'U19M', 'Ž':'U19W'}.get(race.get('sex'), race.get('sex', '')))
 
-def dates_only(body, content_type, race, url):
+def dates_only(body, content_type, race, url, page=None, linked_edition=False):
     # The placeholder selects the reader's season; it is never published.
     target = {**race, 'date': '2027-01-01', 'enddate': '2027-01-01' if race['date'] and race['date'] == race['enddate'] else '2027-01-02'}
     target['id'] = race['id'] if race['id'].startswith('uci-2027-') else race.get('source2026Id', race['id'])
-    observed = extract(body, content_type, target, url)
+    # Federation IDs can change each season. Only an explicitly linked official
+    # edition with the exact known event heading can supply its new ID.
+    if linked_edition and 'html' in content_type:
+        page = page if page is not None else Page(body)
+        if any(normalized(heading) == normalized(race['name']) for heading in page.headings):
+            host = urlsplit(url).hostname
+            if host == 'competitions.ffc.fr' and page.after('Saison') == YEAR:
+                event_id = page.after("N° d'épreuve")
+                if event_id and re.fullmatch(r'[A-Za-z0-9-]{1,40}', event_id):
+                    target['id'] = 'FR-FFC-' + event_id
+            elif host == 'www.federciclismo.it':
+                event_id = parse_qs(urlsplit(url).query).get('raceid', [''])[0]
+                if re.fullmatch(r'\d{1,20}', event_id):
+                    target['id'] = 'IT-' + event_id
+    observed = extract(body, content_type, target, url, page=page)
     if not observed or not all(k in observed['fields'] for k in ('date', 'enddate')):
         return None
     fields = {k: observed['fields'][k] for k in ('date', 'enddate')}
@@ -24,7 +38,7 @@ def dates_only(body, content_type, race, url):
     if observed['fields'].get('state') == 'cancelled':
         return None
     if not race['date'].startswith(YEAR):
-        page = Page(body)
+        page = page if page is not None else Page(body)
         # Federation IDs alone can be reused. Require the known event name too.
         if observed['adapter'] != 'schema-event-v1' and not any(normalized(h) == normalized(race['name']) for h in page.headings):
             return None

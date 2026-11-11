@@ -93,6 +93,8 @@ class UciDiscovery(unittest.TestCase):
             CALENDAR_URL:(details().encode(),'text/html'),
         }
         class FakeFetcher:
+            requests = retries = 0
+            blocked = {}
             def get(self,url,previous):
                 body,kind=responses[url]
                 return dict(body=body,contentType=kind,finalUrl=url,

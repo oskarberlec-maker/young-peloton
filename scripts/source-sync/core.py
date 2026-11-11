@@ -58,6 +58,8 @@ class Page(HTMLParser):
         self.skip = 0
         self.script = None
         self.heading = None
+        self.links = []
+        self.anchor = None
         self.feed(text)
 
     def handle_starttag(self, tag, attrs):
@@ -73,6 +75,8 @@ class Page(HTMLParser):
             self.script = ''
         if tag in ('h1', 'h2'):
             self.heading = ''
+        if tag == 'a' and a.get('href'):
+            self.anchor = [a['href'], '']
 
     def handle_endtag(self, tag):
         if tag == 'script' and self.script is not None:
@@ -86,6 +90,9 @@ class Page(HTMLParser):
         if tag in ('h1', 'h2') and self.heading is not None:
             self.headings.append(self.heading.strip())
             self.heading = None
+        if tag == 'a' and self.anchor is not None:
+            self.links.append(tuple(self.anchor))
+            self.anchor = None
 
     def handle_data(self, value):
         if self.script is not None:
@@ -94,6 +101,8 @@ class Page(HTMLParser):
             self.lines.append(' '.join(value.split()))
             if self.heading is not None:
                 self.heading += value
+            if self.anchor is not None:
+                self.anchor[1] += value
 
     def after(self, label):
         try:
@@ -226,10 +235,10 @@ def read_ld(page, race, url):
     return {'fields': fields, 'adapter': 'schema-event-v1', 'confidence': 'structured'}
 
 
-def extract(body, content_type, race, url):
+def extract(body, content_type, race, url, page=None):
     if 'html' not in content_type:
         return None
-    page = Page(body)
+    page = page if page is not None else Page(body)
     host = urlsplit(url).hostname
     if host == 'www.uci.org':
         return read_uci(page, race, url)
