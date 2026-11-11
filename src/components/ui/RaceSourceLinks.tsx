@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { sourceLabel } from '@/lib/source-label';
+import { RACE_ENTRY } from '@/lib/race-entry';
 
 type ExtraSources = Record<string,string[]>;
 const indexFor = (id:string) => [...id].reduce((sum,char)=>sum+char.charCodeAt(0),0)%16;
@@ -19,7 +21,10 @@ export function RaceSourceLinks({raceId}:{raceId:string}) {
       .finally(()=>{if(!abort.signal.aborted)setLoading(false);});
     return ()=>abort.abort();
   },[raceId]);
-  const unique=useMemo(()=>[...new Set(links)], [links]);
+  const unique=useMemo(()=>{
+    const entry=RACE_ENTRY[raceId];
+    return [...new Set([entry?.technicalGuideUrl,entry?.registrationUrl,...links].filter(safeUrl))];
+  }, [links,raceId]);
   if(loading)return <p className="mt-2 text-xs text-muted-foreground">Loading additional source links…</p>;
   if(!unique.length)return <p className="mt-2 text-xs text-muted-foreground">
     No independently linked auxiliary sources for this race. The original race source is listed above.
@@ -28,7 +33,7 @@ export function RaceSourceLinks({raceId}:{raceId:string}) {
     {unique.slice(0,35).map((url,i)=><a key={url} href={url}
       target="_blank" rel="noopener noreferrer"
       className="inline-flex items-center gap-1 break-all text-sky-700 underline underline-offset-4 hover:text-sky-900">
-      Additional source {i+1}<ArrowUpRight size={13} aria-hidden="true"/>
+      {url===RACE_ENTRY[raceId]?.technicalGuideUrl?'Technical guide':url===RACE_ENTRY[raceId]?.registrationUrl?'Registration':sourceLabel(url)}<ArrowUpRight size={13} aria-hidden="true"/>
     </a>)}
     {unique.length>35&&<p className="basis-full text-xs text-muted-foreground">
       {unique.length-35} other archived URLs are recorded but not shown here.

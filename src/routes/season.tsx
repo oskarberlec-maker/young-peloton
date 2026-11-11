@@ -1,3 +1,4 @@
+import { englishPlace } from '@/lib/u19-english';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Bookmark, CalendarDays, Download, Upload } from 'lucide-react';
@@ -128,7 +129,7 @@ function SavedPage() {
           {selected.map(r => <article key={r.id} className="rounded-xl border p-4">
             <p className="text-sm font-semibold text-sky-700">{niceDate(r.date)}</p>
             <h3 className="mt-2 font-bold"><Link to="/race/$raceId" params={{raceId:r.id}} className="hover:underline">{r.name}</Link></h3>
-            <p className="mt-1 text-sm text-muted-foreground">{r.place} · {countryLabel(r.countryCode, r.country)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{englishPlace(r.place)} · {countryLabel(r.countryCode, r.country)}</p>
             <p className="mt-2 text-xs text-muted-foreground">{getRaceLevel(r).label}</p>
             {futureEditions.has(r.id) && <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm">
               <p className="font-bold text-sky-900">2027 date confirmed</p>

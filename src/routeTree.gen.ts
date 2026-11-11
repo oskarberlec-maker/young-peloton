@@ -11,11 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as ReportRouteImport } from './routes/report'
 import { Route as SeasonRouteImport } from './routes/season'
-import { Route as RaceRaceIdRouteImport } from './routes/race.$raceId'
 import { Route as ApiPushConfigRouteImport } from './routes/api/push-config'
-import { Route as ApiPushSubscriptionRouteImport } from './routes/api/push-subscription'
 import { Route as ApiPushDispatchRouteImport } from './routes/api/push-dispatch'
+import { Route as ApiPushSubscriptionRouteImport } from './routes/api/push-subscription'
+import { Route as RaceRaceIdRouteImport } from './routes/race.$raceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,9 +28,29 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportRoute = ReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SeasonRoute = SeasonRouteImport.update({
   id: '/season',
   path: '/season',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPushConfigRoute = ApiPushConfigRouteImport.update({
+  id: '/api/push-config',
+  path: '/api/push-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPushDispatchRoute = ApiPushDispatchRouteImport.update({
+  id: '/api/push-dispatch',
+  path: '/api/push-dispatch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPushSubscriptionRoute = ApiPushSubscriptionRouteImport.update({
+  id: '/api/push-subscription',
+  path: '/api/push-subscription',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RaceRaceIdRoute = RaceRaceIdRouteImport.update({
@@ -38,93 +59,83 @@ const RaceRaceIdRoute = RaceRaceIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
-const ApiPushConfigRoute = ApiPushConfigRouteImport.update({
-  id: '/api/push-config',
-  path: '/api/push-config',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ApiPushSubscriptionRoute = ApiPushSubscriptionRouteImport.update({
-  id: '/api/push-subscription',
-  path: '/api/push-subscription',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const ApiPushDispatchRoute = ApiPushDispatchRouteImport.update({
-  id: '/api/push-dispatch',
-  path: '/api/push-dispatch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 export interface FileRoutesByFullPath {
-  '/api/push-config': typeof ApiPushConfigRoute
-  '/api/push-subscription': typeof ApiPushSubscriptionRoute
-  '/api/push-dispatch': typeof ApiPushDispatchRoute
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/report': typeof ReportRoute
   '/season': typeof SeasonRoute
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
   '/race/$raceId': typeof RaceRaceIdRoute
 }
 export interface FileRoutesByTo {
-  '/api/push-config': typeof ApiPushConfigRoute
-  '/api/push-subscription': typeof ApiPushSubscriptionRoute
-  '/api/push-dispatch': typeof ApiPushDispatchRoute
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/report': typeof ReportRoute
   '/season': typeof SeasonRoute
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
   '/race/$raceId': typeof RaceRaceIdRoute
 }
 export interface FileRoutesById {
-  '/api/push-config': typeof ApiPushConfigRoute
-  '/api/push-subscription': typeof ApiPushSubscriptionRoute
-  '/api/push-dispatch': typeof ApiPushDispatchRoute
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/report': typeof ReportRoute
   '/season': typeof SeasonRoute
+  '/api/push-config': typeof ApiPushConfigRoute
+  '/api/push-dispatch': typeof ApiPushDispatchRoute
+  '/api/push-subscription': typeof ApiPushSubscriptionRoute
   '/race/$raceId': typeof RaceRaceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/report'
+    | '/season'
+    | '/api/push-config'
+    | '/api/push-dispatch'
+    | '/api/push-subscription'
+    | '/race/$raceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
-  id: '__root__' | '/' | '/about' | '/season' | '/race/$raceId' | '/api/push-config' | '/api/push-subscription' | '/api/push-dispatch'
+  to:
+    | '/'
+    | '/about'
+    | '/report'
+    | '/season'
+    | '/api/push-config'
+    | '/api/push-dispatch'
+    | '/api/push-subscription'
+    | '/race/$raceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/report'
+    | '/season'
+    | '/api/push-config'
+    | '/api/push-dispatch'
+    | '/api/push-subscription'
+    | '/race/$raceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  ApiPushConfigRoute: typeof ApiPushConfigRoute
-  ApiPushSubscriptionRoute: typeof ApiPushSubscriptionRoute
-  ApiPushDispatchRoute: typeof ApiPushDispatchRoute
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ReportRoute: typeof ReportRoute
   SeasonRoute: typeof SeasonRoute
+  ApiPushConfigRoute: typeof ApiPushConfigRoute
+  ApiPushDispatchRoute: typeof ApiPushDispatchRoute
+  ApiPushSubscriptionRoute: typeof ApiPushSubscriptionRoute
   RaceRaceIdRoute: typeof RaceRaceIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/api/push-config': {
-      id: '/api/push-config'
-      path: '/api/push-config'
-      fullPath: '/api/push-config'
-      preLoaderRoute: typeof ApiPushConfigRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/push-subscription': {
-      id: '/api/push-subscription'
-      path: '/api/push-subscription'
-      fullPath: '/api/push-subscription'
-      preLoaderRoute: typeof ApiPushSubscriptionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/push-dispatch': {
-      id: '/api/push-dispatch'
-      path: '/api/push-dispatch'
-      fullPath: '/api/push-dispatch'
-      preLoaderRoute: typeof ApiPushDispatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -139,11 +150,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/report': {
+      id: '/report'
+      path: '/report'
+      fullPath: '/report'
+      preLoaderRoute: typeof ReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/season': {
       id: '/season'
       path: '/season'
       fullPath: '/season'
       preLoaderRoute: typeof SeasonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/push-config': {
+      id: '/api/push-config'
+      path: '/api/push-config'
+      fullPath: '/api/push-config'
+      preLoaderRoute: typeof ApiPushConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/push-dispatch': {
+      id: '/api/push-dispatch'
+      path: '/api/push-dispatch'
+      fullPath: '/api/push-dispatch'
+      preLoaderRoute: typeof ApiPushDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/push-subscription': {
+      id: '/api/push-subscription'
+      path: '/api/push-subscription'
+      fullPath: '/api/push-subscription'
+      preLoaderRoute: typeof ApiPushSubscriptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/race/$raceId': {
@@ -157,12 +196,13 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  ApiPushConfigRoute: ApiPushConfigRoute,
-  ApiPushSubscriptionRoute: ApiPushSubscriptionRoute,
-  ApiPushDispatchRoute: ApiPushDispatchRoute,
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ReportRoute: ReportRoute,
   SeasonRoute: SeasonRoute,
+  ApiPushConfigRoute: ApiPushConfigRoute,
+  ApiPushDispatchRoute: ApiPushDispatchRoute,
+  ApiPushSubscriptionRoute: ApiPushSubscriptionRoute,
   RaceRaceIdRoute: RaceRaceIdRoute,
 }
 export const routeTree = rootRouteImport

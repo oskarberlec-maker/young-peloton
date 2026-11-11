@@ -1,3 +1,4 @@
+import { englishPlace } from '@/lib/u19-english';
 import { useEffect, useMemo, useState } from 'react';
 import { Bookmark, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
@@ -153,7 +154,7 @@ export function RaceMonthCalendar({ races, year, saved, onToggleSaved }: {
         {visibleChosen.map(r=><article key={r.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <div className="min-w-0 flex-1">
             <Link to="/race/$raceId" params={{raceId:r.id}} className="font-semibold text-slate-950 hover:text-sky-800 hover:underline">{r.name}</Link>
-            <p className="mt-1 text-sm text-slate-600">{r.place||'Location unconfirmed'} · {countryLabel(r.countryCode,r.country)} · {getRaceLevel(r).label}</p>
+            <p className="mt-1 text-sm text-slate-600">{englishPlace(r.place)} · {countryLabel(r.countryCode,r.country)} · {getRaceLevel(r).label}</p>
             <p className="mt-1 text-xs text-slate-500">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?' – '+niceDate(r.enddate):''}</p>
           </div>
           <button type="button" onClick={()=>void onToggleSaved(r.id,year,r)}
