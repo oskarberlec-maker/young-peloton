@@ -142,14 +142,30 @@ def read_ffc(page, race, url):
     if not event_id or race['id'] != 'FR-FFC-' + event_id:
         return None
     year = page.after('Saison')
-    dates = []
+    pairs = set()
+    day_pattern = r'(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) (\d{1,2}) ([a-z]+) (\d{4})'
+    def french_day(groups):
+        day, month, yr = groups
+        if month not in FRENCH_MONTHS:
+            raise ValueError('Unknown FFC month')
+        return dt.date(int(yr), FRENCH_MONTHS.index(month) + 1, int(day)).isoformat()
     for line in page.lines:
-        m = re.fullmatch(r'(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) (\d{1,2}) ([a-z]+) (\d{4})', normalized(line))
-        if m and m[2] in FRENCH_MONTHS and m[3] == year:
-            dates.append(dt.date(int(m[3]), FRENCH_MONTHS.index(m[2]) + 1, int(m[1])).isoformat())
+        text = normalized(line)
+        one = re.fullmatch(r'(?:le )?' + day_pattern, text)
+        span = re.fullmatch('du ' + day_pattern + ' au ' + day_pattern, text)
+        if one and one[3] == year:
+            day = french_day(one.groups())
+            pairs.add((day, day))
+        elif span and span[3] == year and span[6] == year:
+            pairs.add((french_day(span.groups()[:3]), french_day(span.groups()[3:])))
     fields = {}
-    if len(set(dates)) == 1 and page.after('Durée') in ('1 jour', '1 jours'):
-        fields.update(date=dates[0], enddate=dates[0])
+    if len(pairs) > 1:
+        raise ValueError('Conflicting FFC event date ranges')
+    if pairs:
+        start, end = next(iter(pairs))
+        duration = re.fullmatch(r'(\d+) jours?', page.after('Durée') or '')
+        if duration and (dt.date.fromisoformat(end) - dt.date.fromisoformat(start)).days + 1 == int(duration[1]):
+            fields.update(date=start, enddate=end)
     level = normalized(page.after('Type de compétition') or '')
     if level in ('regional', 'national'):
         fields['liveLevel'] = 'regional' if level == 'regional' else 'national'

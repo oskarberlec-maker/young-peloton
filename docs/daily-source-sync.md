@@ -170,3 +170,41 @@ Limitations: PDFs cannot auto-publish; Belgian JSON APIs and JavaScript-only
 Dutch calendars still need validated real response fixtures and dedicated
 readers. No discovery-yield increase is claimed until a full live report exists.
 The daily 04:17 UTC schedule and independent race-source-data publication remain.
+
+## Reader version 5: event dates instead of navigation-year matches
+
+A targeted inspection of live FFC/FCI pages on 12 November 2026 identified two
+reader defects: FFC's shared Haute-Savoie UCI 2027 navigation was counted as race
+evidence, and FCI's PISTA/FUORISTRADA navigation could invalidate a road race.
+Evidence now requires an explicit full 2027 date; federation category checks use
+race-specific fields and published FFC junior codes (MJ/WJ, 1.14/2.14 and
+1.21/2.21, including the displayed .0 variant), excluding unrelated navigation.
+
+The scanner now queries the official FFC road calendar in 27 supported 14-day
+windows covering 2027. The form supports only 1–14 days: a 365-day request is
+silently reduced to one day. Scoped event cards supply exact names, road
+discipline, explicit dates and official detail links. A matching known French
+race is followed and independently verified by the existing detail reader.
+Calendar/detail date disagreements block publication. No event URL is guessed.
+The existing discovery budget, transport protections and one-hop bound remain.
+Discovery leads survive 304 responses and budget exhaustion.
+
+FFC's explicit French multi-day ranges now publish both dates when season and
+stated duration agree. Supported federation detail URLs in secondary sources
+can also supply verified dates. First confirmations enter confirmed2027;
+subsequent verified changes use the existing overrides feed. The website already
+consumes this feed without an application deployment; no UI changes are needed.
+2026 records, existing verified dates and conflict protections remain intact.
+
+Live source examples used for validation:
+- https://competitions.ffc.fr/calendrier/?discipline=1&debut=01%2F03%2F2027&nbjours=14
+- https://competitions.ffc.fr/calendrier/?discipline=1&debut=01%2F06%2F2027&nbjours=14
+- https://competitions.ffc.fr/calendrier/competition/2026/4221073005/la-cote-dor-classic-u19/
+- https://www.federciclismo.it/ricerca-gare/dettaglio-gara/?raceid=179377&site=strada_it&mese=03
+- FFC codification: https://ffc.fr/app/uploads/sites/2/2024/04/Codification-epreuves-route-bareme-points.pdf
+
+Regression dates in test_federation_dates.py are explicitly synthetic; they are
+never published. A separate targeted replay of downloaded live pages exercises
+the same confirmation/overlay pipeline, without publishing fixture output.
+Unsupported prose/PDF calendars and newly named non-UCI races still need further
+readers or identity review; a page-wide year alone is not sufficient evidence.
