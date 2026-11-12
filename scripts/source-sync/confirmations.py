@@ -12,6 +12,17 @@ def identity(race):
     return (normalized(race['name']), race.get('countryCode', ''), {'M':'U19M', 'Ž':'U19W'}.get(race.get('sex'), race.get('sex', '')))
 
 def dates_only(body, content_type, race, url, page=None, linked_edition=False):
+    if race.get('officialEventId', '').startswith('FR-FFC-'):
+        # Newly discovered events must retain the same strict category/identity
+        # checks on later scans, even without a 2026 ancestor or discovery alias.
+        from ffc_discovery import detail
+        if 'html' not in content_type:
+            return None
+        verified = detail(page if page is not None else Page(body), url, '')
+        if not verified or verified['officialEventId'] != race['officialEventId'] or identity(verified) != identity(race):
+            return None
+        return {'fields': {k: verified[k] for k in ('date', 'enddate')},
+                'adapter': 'ffc-calendar-and-detail-v1', 'confidence': 'exact'}
     # The placeholder selects the reader's season; it is never published.
     target = {**race, 'date': '2027-01-01', 'enddate': '2027-01-01' if race['date'] and race['date'] == race['enddate'] else '2027-01-02'}
     target['id'] = race['id'] if race['id'].startswith('uci-2027-') else race.get('source2026Id', race['id'])

@@ -1,6 +1,7 @@
 import { describe,it,expect } from 'vitest';
 import { applySourceUpdates, mergeConfirmed2027 } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
+import ffcFeed from '../../scripts/source-sync/data/fixtures/ffc/expected-feed.json';
 import { getRaceLevel } from './race-level';
 const race = UCI_2027_RACES[0]!;
 const payload = (fields: Record<string,unknown>) => ({schemaVersion:1,races:{[race.id]:{fields,updatedAt:'2026-10-28T05:00:00Z',sourceUrl:race.sourceUrl,adapter:'uci-competition-v1'}}});
@@ -36,4 +37,13 @@ describe('confirmed 2027 editions',()=>{
    expect(mergeConfirmed2027([],{schemaVersion:1,confirmed2027:{[fresh.id]:{...fresh,...patch}}})).toHaveLength(0);
   }
  });
+});
+
+// Produced by the Python reader from two real FFC event fragments.
+it('accepts new FFC races without a 2026 ancestor through the existing live feed',()=>{
+ const result=mergeConfirmed2027([],ffcFeed);
+ expect(result).toHaveLength(2);
+ expect(result.map(r=>r.date).sort()).toEqual(['2027-03-06','2027-03-07']);
+ expect(result.every(r=>r.source2026Id==='' && r.lat===null)).toBe(true);
+ expect(mergeConfirmed2027(result,ffcFeed)).toHaveLength(2);
 });

@@ -208,3 +208,50 @@ never published. A separate targeted replay of downloaded live pages exercises
 the same confirmation/overlay pipeline, without publishing fixture output.
 Unsupported prose/PDF calendars and newly named non-UCI races still need further
 readers or identity review; a page-wide year alone is not sufficient evidence.
+
+## V6: FFC races absent from the archive
+
+V5's completed run 43219083704 (12 November 2026) inventoried 14,029 sources,
+accessed 10,168 successfully, failed 65 and deferred 3,796. It published 24 new
+2027 editions of known races. Its calendar evidence contained 242 road detail
+URLs, only 111 of which were inventoried. New names were the measured gap.
+
+V6 follows all explicitly dated FFC road calendar entries within the existing
+200-link discovery budget, including unknown names. Publication requires exact
+calendar/detail name and event ID agreement, a single Route header, an explicit
+metropolitan French department, a supported U19 men/women event code, season
+2027, explicit dates and matching duration. It reuses the FFC date reader.
+Unknown categories, overseas/unknown locations and ambiguous records require
+review. A URL's year does not prove the event's season. No coordinates are guessed.
+
+New races use the existing confirmed2027 hashed IDs and complete website schema;
+source2026Id is empty when no unique archive match exists. Calendar and detail
+links are retained in sourceLinks and scanner state. Exact name/country/category
+deduplication and stable-ID conflict checks prevent duplicate publication.
+Calendar/detail evidence survives 304s; only sources successfully checked in the
+current run authorize a new publication. Conflicts are reported even when neither
+detail proposes a change to the currently published date.
+
+Reports add official2027CalendarEntriesDiscovered (unique FFC detail URLs),
+calendarEntriesMatchedToKnownRace (verified identities),
+federationDetailPagesVerified, duplicatesSkipped and existingDatesUpdated.
+Existing UCI calendar counters remain separate. A parsed calendar is discovery
+information, not a confirmed date. Known non-U19/ambiguous calendar entries are
+retained as review candidates until a reader can establish eligibility.
+
+Real event markup in data/fixtures/ffc was captured on 12 November 2026 from:
+- https://competitions.ffc.fr/calendrier/?discipline=1&debut=01%2F03%2F2027&nbjours=14
+- https://competitions.ffc.fr/calendrier/competition/2027/4436272001/classic-coeur-de-brenne-u19/
+- https://competitions.ffc.fr/calendrier/competition/2027/4877114003/boucles-de-seine-et-marne-souvenir-bernard-maillet/
+
+The fixtures retain event markup, omitting navigation and contact forms. A
+three-response replay proves publication with neither race in the archive,
+repeat/304 persistence, conflicts and stable-ID rename rejection. This replay
+is test output, never production feed publication. The real KNWU sample
+https://mijn.knwu.nl/calendar/races/100578 returned 403; no restriction was
+bypassed and no speculative KNWU parser was added. Italy/Belgium and ambiguous
+legacy IDs remain follow-up work. PDF evidence remains manual-review-only.
+
+The V6 upgrade invalidates only FFC validators; unchanged V5 readers retain
+their conditional-request caches. Subsequent checks of a newly discovered FFC
+race revalidate its strict category and stable ID even without a discovery alias.
