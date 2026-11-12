@@ -14,15 +14,16 @@ import time
 from urllib.parse import urlsplit
 from confirmations import dates_only, edition, identity, CALENDAR
 from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
-from core import canonical, Page
+from core import canonical, Page, normalized
 from catalogue import linked_source_catalogue, excel_result_sources
 from transport import Fetcher, DeferredSource
 from discovery import edition_links
+from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, calendar_date_evidence
 from pdf_evidence import pdf_evidence
 from conflicts import reconcile
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 4
+READER_VERSION = 5
 MAX_DISCOVERED_PER_RUN = 200
 
 
@@ -105,6 +106,14 @@ def run(args):
     print(json.dumps({**link_metrics,'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'uniqueSources':len(registry),
         'excelRows':28975,'excelUniquePairs':imported_pairs,'excelRaceIds':len(imported_excel),
         'excelUnmappedRaceIds':len(unmapped_excel_ids)}),flush=True)
+    # Query the federation's documented date filters instead of guessing edition URLs.
+    # These 27 small windows cover the complete 2027 road calendar.
+    federation_seeds = list(calendar_seeds()) if not args.fixtures and any(r.get('countryCode') == 'FR' for r in races) else []
+    for url in federation_seeds:
+        registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
+    known_names = {}
+    for race in races:
+        known_names.setdefault(normalized(race['name']), []).append(race)
     # Revisit verified discovery links on every run, including when the parent returns 304.
     discovery_registry = previous.get('discoveredSources', {})
     for url, evidence in discovery_registry.items():
@@ -197,7 +206,7 @@ def run(args):
                         updates.extend(changes)
                         record.setdefault('observations', {})[rid] = evidence
                 pending_review = {'sourceUrl': url, 'reason': 'Previously detected source change still needs a supported reader or review'} if record.get('needsReview') else None
-                return url, record, updates, pending_review, []
+                return url, record, updates, pending_review, [tuple(item) for item in prev.get('discoveryCandidates', [])]
             record.pop('uciDetail', None)
             body = result.pop('body')
             raw_hash = hashlib.sha256(body).hexdigest()
@@ -206,6 +215,8 @@ def run(args):
             page = None
             if 'html' in result['contentType']:
                 page = Page(decoded)
+                if urlsplit(url).hostname == 'competitions.ffc.fr' and urlsplit(url).path.rstrip('/') == '/calendrier':
+                    page.ffc_calendar = FFCCalendar(decoded).entries
                 # Exclude scripts/tokens and style churn from unsupported-page notices.
                 page_hash = hashlib.sha256(('\n'.join(page.lines) + json.dumps(page.ld, sort_keys=True) + json.dumps(page.props, sort_keys=True)).encode()).hexdigest()
             if result['contentType'] == 'application/pdf':
@@ -228,7 +239,8 @@ def run(args):
                 # Result and eligibility links may also publish structured 2027
                 # editions. Only process secondary URLs with explicit Schema.org
                 # data; broad result lists and plain-text year mentions do not qualify.
-                secondary = (registry[url]['secondary'] - registry[url]['primary']) if ('2027' in decoded and 'application/ld+json' in decoded.lower()) else set()
+                secondary = (registry[url]['secondary'] - registry[url]['primary']) if (page is not None and has_2027_dates(page) and
+                    ('application/ld+json' in decoded.lower() or urlsplit(url).hostname in ('competitions.ffc.fr', 'www.federciclismo.it'))) else set()
                 for rid in sorted(registry[url]['primary'] | secondary):
                     race = by_id[rid]
                     try:
@@ -242,12 +254,15 @@ def run(args):
                     except (ValueError, KeyError, TypeError) as e:
                         parse_errors.append({'raceId': rid, 'reason': str(e)[:200]})
             if page is not None and not result['redirectedHost']:
+                candidates.extend(calendar_links(page, url, known_names))
                 for rid in sorted(registry[url]['primary']):
                     if rid in by_id:
                         candidates.extend((link, rid) for link in edition_links(page, by_id[rid], url))
+            record['calendarDateEvidence'] = calendar_date_evidence(page, url) if page is not None else {}
+            record['discoveryCandidates'] = [list(item) for item in dict.fromkeys(candidates)][:500]
             for missing_id in sorted(set(prev.get('observations', {})) - set(observations)):
                 parse_errors.append({'raceId': missing_id, 'reason': 'Previously supported 2027 evidence is no longer present'})
-            target_year = bool(page is not None and ('2027' in '\n'.join(page.lines) or any('2027' in json.dumps(root) for root in page.ld) or '2027' in json.dumps(page.props)))
+            target_year = bool(page is not None and has_2027_dates(page))
             had_target_evidence = bool(prev.get('hadTargetEvidence') or prev.get('observations'))
             historical = bool(page is not None and '2026' in url + '\n'.join(page.lines) + json.dumps(page.ld)
                               and not target_year and not supported and not had_target_evidence)
@@ -288,6 +303,9 @@ def run(args):
             proposed.extend(p for p in updates if 'newEdition' not in p)
             for child, rid in candidates:
                 if child in registry:
+                    if rid not in registry[child]['primary']:
+                        entry = state['discoveredSources'].setdefault(child, {'parent': url, 'raceIds': []})
+                        entry['raceIds'] = sorted(set(entry['raceIds']) | {rid})
                     continue
                 if child not in discovered and len(discovered) >= MAX_DISCOVERED_PER_RUN:
                     continue
@@ -386,6 +404,21 @@ def run(args):
         for rid, observed in record.get('observations', {}).items()
         if observed.get('targetRaceId', rid) in by_id and by_id[observed.get('targetRaceId', rid)]['date'].startswith('2027-')
     ]
+    # A federation calendar and its detail are independent current observations.
+    # Preserve the existing edition when those two official surfaces disagree.
+    federation_dates = {}
+    for parent, record in state['sources'].items():
+        if record.get('status') == 'ok' and record.get('lastCheckedAt') == now:
+            for child, pairs in record.get('calendarDateEvidence', {}).items():
+                for pair in pairs:
+                    federation_dates.setdefault(child, []).append((parent, pair))
+    for item in list(new_editions):
+        for parent, pair in federation_dates.get(item['sourceUrl'], []):
+            new_editions.append({**item, 'sourceUrl': parent, 'newEdition': {**item['newEdition'], 'date': pair[0], 'enddate': pair[1]}})
+    for item in proposed + verified:
+        for parent, pair in federation_dates.get(item['sourceUrl'], []):
+            calendar_verified.append({'raceId': item['raceId'], 'sourceUrl': parent,
+                                      'fields': {'date': pair[0], 'enddate': pair[1]}})
     proposed, new_editions, conflicts = reconcile(proposed, new_editions, verified + calendar_verified)
     review.extend(conflicts)
     counts['dateConflicts'] = len(conflicts)
@@ -488,8 +521,8 @@ def run(args):
                                             bool(rec.get('targetYearEvidence') or rec.get('observations'))
                                             for rec in state['sources'].values())
     counts['newlyConfirmedRaceDates'] = added
-    counts['new2027RacesDiscovered'] = sum('newEdition' in item and not item['newEdition'].get('source2026Id')
-                                          and item['newEdition']['id'] in added_ids for item in new_editions)
+    counts['new2027RacesDiscovered'] = len({item['newEdition']['id'] for item in new_editions if not item['newEdition'].get('source2026Id')
+                                          and item['newEdition']['id'] in added_ids})
     priority_review = sorted((item for item in review if not item.get('deferred')), key=lambda item: (
         item.get('category') != 'identity_conflict',
         not state['sources'].get(item.get('sourceUrl'), {}).get('targetYearEvidence', False),

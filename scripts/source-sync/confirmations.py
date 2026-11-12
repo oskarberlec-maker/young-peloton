@@ -2,6 +2,7 @@
 import hashlib
 import re
 from urllib.parse import urlsplit, parse_qs
+from federation_calendar import federation_category
 from core import Page, extract, normalized, uci_dates, validate, walk_events, event_context
 
 YEAR = '2027'
@@ -30,14 +31,12 @@ def dates_only(body, content_type, race, url, page=None, linked_edition=False):
                     target['id'] = 'IT-' + event_id
     if linked_edition and 'html' in content_type:
         page = page if page is not None else Page(body)
-        host_country = {'competitions.ffc.fr': 'FR', 'www.federciclismo.it': 'IT',
-                        'cycling.vlaanderen': 'BE', 'mijn.knwu.nl': 'NL'}.get(urlsplit(url).hostname)
-        text = normalized(' '.join(line for line in page.lines if normalized(line) != normalized(race['name'])))
-        federation_category = bool(host_country) and event_context(
-            {'category': text, 'location': {'address': {'addressCountry': host_country}}}, race)
+        host_country, category = federation_category(page, race, url)
+        federation_evidence = bool(host_country) and event_context(
+            {'category': category, 'location': {'address': {'addressCountry': host_country}}}, race)
         structured_category = any(normalized(str(event.get('name', ''))) == normalized(race['name']) and
                                   event_context(event, race) for root in page.ld for event in walk_events(root))
-        if not (federation_category or structured_category):
+        if not (federation_evidence or structured_category):
             return None
     observed = extract(body, content_type, target, url, page=page)
     if not observed or not all(k in observed['fields'] for k in ('date', 'enddate')):
