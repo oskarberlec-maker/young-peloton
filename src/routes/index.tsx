@@ -2,16 +2,15 @@ import { englishPlace } from '@/lib/u19-english';
 import { loadSourceSyncStatus, sourceReportUrl, sourceHistoryUrl, type SourceSyncStatus } from '@/lib/source-updates';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Share2, Bookmark } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Bookmark } from 'lucide-react';
 import { U19Map } from '@/components/U19Map';
 import { CountryEntryGuide } from '@/components/CountryEntryGuide';
-import { RaceSourceLinks } from '@/components/ui/RaceSourceLinks';
 import { RaceMonthCalendar } from '@/components/RaceMonthCalendar';
 import { InstallAppButton } from '@/components/InstallAppButton';
 import { MultiRaceFilter } from '@/components/MultiRaceFilter';
 import { getRaceLevel, LEVEL_OPTIONS, type RaceLevel } from '@/lib/race-level';
 import { englishCategory, englishRaceType, englishConfirmation, englishRaceNote } from '@/lib/u19-english';
-import { countryLabel, loadU19Races, niceDate, safeUrl, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
+import { countryLabel, loadU19Races, niceDate, visibleRace, type RaceManifest, type U19Race } from '@/lib/u19-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from '@tanstack/react-router';
@@ -19,7 +18,6 @@ import { useRacingSeason } from '@/lib/use-racing-season';
 import { downloadIcs } from '@/lib/race-calendar';
 import { ENTRY_OPTIONS, entryLabel, getRaceEntry, matchesEntry } from '@/lib/race-entry';
 import { raceDetailUrl, safeCalendarReturn } from '@/lib/race-navigation';
-import { sourceLabel } from '@/lib/source-label';
 
 export const Route = createFileRoute('/')({
   head:()=>({ meta:[
@@ -40,8 +38,6 @@ const raceOverlaps = (r: U19Race, start: string, end: string) =>
 const raceTypeLabel = (r: U19Race) => englishRaceType(r.type).toLowerCase();
 const DATE_MONTH=(s:string)=>s&&/^\d{4}-(\d\d)-\d\d$/.test(s)?Number(s.slice(5,7)):0;
 const statusOptions: [string,string][]=[['all','All U19 verification statuses'],['confirmed','U19 confirmed'],['conditional','Conditional U19'],['review','Needs review'],['no','U19 not confirmed']];
-const raceClasses: Record<string,string>={confirmed:'bg-emerald-100 text-emerald-800',conditional:'bg-blue-100 text-blue-800',review:'bg-amber-100 text-amber-900',no:'bg-stone-200 text-stone-800'};
-const bucketText: Record<string,string>={confirmed:'U19 confirmed',conditional:'Conditional U19',review:'Needs review',no:'U19 not confirmed'};
 
 function downloadCsv(races:U19Race[]) {
   const cols:[string,(r:U19Race)=>string][]=[
@@ -60,9 +56,6 @@ function downloadCsv(races:U19Race[]) {
   const url=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download='young-peloton-u19.csv';document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),3000);
-}
-function Source({url,children}:{url:string;children:string}){
-  return safeUrl(url)?<a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:underline">{children}<ArrowUpRight size={12}/></a>:null;
 }
 function Index(){
   const [sourceSync,setSourceSync]=useState<SourceSyncStatus|null>(null);
@@ -94,7 +87,6 @@ function Index(){
 
 
   const jump=(target:'calendar'|'month'|'map')=>{setLinkedRace('');const url=new URL(window.location.href);url.searchParams.delete('race');url.searchParams.delete('mapReturnTo');window.history.replaceState(window.history.state,'',url.toString());setTab(target);requestAnimationFrame(()=>document.getElementById('race-results')?.scrollIntoView({behavior:'smooth',block:'start'}));};
-  const shareRace=async(r:U19Race)=>{const url=new URL(window.location.href);url.searchParams.set('race',r.id);try{await navigator.clipboard.writeText(url.toString());}catch{window.prompt('Copy race link:',url.toString());}};
   useEffect(()=>{
     const p=new URLSearchParams(window.location.search);
     const parse=(key:string,allowed:string[],defaultValue:string[]=[])=>{
@@ -314,21 +306,15 @@ function Index(){
             </label>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {shown.map(r=><article key={r.id} className="yp-race-card flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 transition-all duration-200">
-              <div>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><span className="font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</span><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${raceClasses[r.bucket]||'bg-muted'}`}>{bucketText[r.bucket]||r.bucket}</span></div>
-                <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo:calendarReturnTo}} onClick={()=>{try{sessionStorage.setItem('yp-calendar-scroll',String(window.scrollY));}catch{}}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
-                <p className="mt-1 font-mono text-[11px] text-slate-500">ID: {r.id}</p>
-                <div className="mt-3"><span title={getRaceLevel(r).basis} className={'inline-flex rounded border px-2.5 py-1 text-[11px] font-semibold '+(getRaceLevel(r).level==='uci'?'border-cyan-200 bg-cyan-50 text-cyan-900':getRaceLevel(r).level==='national'?'border-indigo-200 bg-indigo-50 text-indigo-800':getRaceLevel(r).level==='regional'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-slate-50 text-slate-600')}>{getRaceLevel(r).label}</span>{getRaceLevel(r).level!=='unverified'&&getRaceLevel(r).level!=='regional'&&<span className="ml-2 text-[11px] text-slate-500">{getRaceLevel(r).subtype}</span>}</div>
-                <div className="mt-2 flex gap-2"><button onClick={()=>void toggleSaved(r.id,year,r)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} className="rounded-md border px-2 py-1 text-xs"><Bookmark size={14} className="inline"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button><button onClick={()=>shareRace(r)} className="rounded-md border px-2 py-1 text-xs" title="Copy direct link"><Share2 size={14} className="inline"/> Copy link</button></div>
-                <p className="mt-2 text-sm text-muted-foreground">{englishPlace(r.place)} · {countryLabel(r.countryCode,r.country)}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded bg-muted px-2 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>{r.type&&<span className="rounded bg-muted px-2 py-1">{englishRaceType(r.type)}</span>}{r.state==='active'&&<span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Listed · occurrence not verified</span>}{r.state==='cancelled'&&<span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">CANCELLED</span>}{r.state==='merged'&&<span className="rounded bg-amber-100 px-2 py-1">MERGED RECORD</span>}{!!r.duplicate&&<span className="rounded bg-amber-100 px-2 py-1">DUPLICATE SOURCE RECORD</span>}</div>
-                <p className="mt-3 text-xs"><span className="font-semibold">Entry:</span> {entryLabel(r)}</p>
-                {r.confirmation&&<p className="mt-3 text-xs leading-relaxed text-muted-foreground"><span className="font-medium">Verification:</span> {englishConfirmation(r.confirmation)}</p>}
-                {r.status&&<p className="mt-2 text-xs leading-relaxed text-muted-foreground">{englishRaceNote(r.status)}</p>}
-                {r.roadUnconfirmed===1&&<p className="mt-2 text-xs text-amber-700">Road discipline not independently verified</p>}
+            {shown.map(r=><article key={r.id} className="yp-race-card flex flex-col rounded-lg border border-slate-200 bg-white p-5 transition-all duration-200">
+              <p className="mb-3 font-semibold tabular-nums text-sky-800">{niceDate(r.date)}{r.enddate&&r.enddate!==r.date?` – ${niceDate(r.enddate)}`:''}</p>
+              <h3 className="text-[17px] font-bold leading-snug tracking-[-0.018em] text-slate-950"><Link to="/race/$raceId" params={{raceId:r.id}} search={{returnTo:calendarReturnTo}} onClick={()=>{try{sessionStorage.setItem('yp-calendar-scroll',String(window.scrollY));}catch{}}} className="hover:text-sky-700 hover:underline">{r.name}</Link></h3>
+              <p className="mt-2 text-sm text-muted-foreground">{englishPlace(r.place)} · {countryLabel(r.countryCode,r.country)}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span title={getRaceLevel(r).basis} className="rounded border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-700">{getRaceLevel(r).label}</span>
+                <span className="rounded bg-muted px-2.5 py-1">{englishCategory(r.sex)||'Category unconfirmed'}</span>
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-sm"><Source url={r.sourceUrl}>{sourceLabel(r.sourceUrl)}</Source>{r.proofUrl&&r.proofUrl!==r.sourceUrl&&<Source url={r.proofUrl}>{sourceLabel(r.proofUrl,'U19 eligibility evidence')}</Source>}{r.resultUrl&&<Source url={r.resultUrl}>Results</Source>}<Link to="/report" search={{raceId:r.id,raceName:r.name}} className="font-semibold text-amber-800 hover:underline">Report error</Link><RaceSourceLinks raceId={r.id}/></div>
+              <div className="mt-auto pt-4"><button type="button" onClick={()=>void toggleSaved(r.id,year,r)} aria-label={saved.includes(r.id)?'Remove saved race':'Save race'} aria-pressed={saved.includes(r.id)} className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:bg-slate-50"><Bookmark size={16} aria-hidden="true"/> {saved.includes(r.id)?'Saved on device':'Save on device'}</button></div>
             </article>)}
           </div>
           {year===2027&&<p className="mb-4 rounded-xl border border-amber-300 p-4 text-sm">2027 dates come from official sources. Daily checks look for confirmed 2027 dates of known races; last year’s dates are never reused. Dates may change. Each competition appears once. Registration deadlines, distances and elevation are not yet verified.</p>}

@@ -1,3 +1,4 @@
+import { correctDiscipline } from './discipline-corrections';
 import { applySourceUpdates, loadSourceUpdates, mergeConfirmed2027 } from './source-updates';
 import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
@@ -28,7 +29,7 @@ export type RaceManifest = {
   sourceMap?: { method: string; sources: { name: string; url: string }[] };
 };
 const ROOT = '/data/2026/';
-export const visibleRace = (r: U19Race) => r.state !== 'merged' && !r.duplicate;
+export const visibleRace = (r: U19Race) => r.state !== 'merged' && !r.duplicate && r.type !== 'Running';
 export const safeUrl = (url?: string) => typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
 export const countryLabel = (code: string, fallback: string) => {
   if (code === 'XK') return 'Kosovo';
@@ -104,7 +105,7 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
   }
   if(signal?.aborted)throw new DOMException('Aborted','AbortError');
   const payload=await updates;
-  let races: U19Race[] = applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>({...r}));
+  let races: U19Race[] = applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>correctDiscipline({...r}));
   if(year!==2026){
     try{
       const response=await fetch('/data/2027/edition-links.json',{signal:signal??null});
@@ -119,6 +120,7 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
     }catch{ /* Links add convenience; never hide race dates when unavailable. */ }
   }
   if(year===2027) base.manifest={...base.manifest,rawEuropeanRecords:races.length,uniqueVisibleRecords:races.filter(visibleRace).length,sourceMeta:{...base.manifest.sourceMeta,total:races.length,cancelled:races.filter(r=>r.state==='cancelled').length}};
+  base.manifest={...base.manifest,uniqueVisibleRecords:races.filter(visibleRace).length};
   races.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
   return {manifest:base.manifest,races};
 }
@@ -133,7 +135,7 @@ export async function loadU19Race(id:string, signal?:AbortSignal):Promise<U19Rac
   if(archivePromise) {
     const data=await archivePromise;
     const race=data.races.find(r=>r.id===id);
-    return race?applySourceUpdates([race],await updates)[0]||null:null;
+    return race?applySourceUpdates([race],await updates).map(correctDiscipline)[0]||null:null;
   }
   const shard=Array.from(id).reduce((sum,c)=>sum+c.charCodeAt(0),0)%16;
   const fetchJson=async(path:string)=>{
@@ -151,5 +153,5 @@ export async function loadU19Race(id:string, signal?:AbortSignal):Promise<U19Rac
   if(!row)throw new Error('Race lookup does not match the archive');
   const race=Object.fromEntries(manifest.fields.map((field,i)=>[field,row[i]])) as U19Race;
   race.levelSymbol=entry[1];
-  return applySourceUpdates([race],await updates)[0]||null;
+  return applySourceUpdates([race],await updates).map(correctDiscipline)[0]||null;
 }

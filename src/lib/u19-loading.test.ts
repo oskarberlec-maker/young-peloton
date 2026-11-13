@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 vi.mock('./source-updates',async(importOriginal)=>({...await importOriginal<typeof import('./source-updates')>(),loadSourceUpdates:vi.fn(async()=>null)}));
 import {loadSourceUpdates} from './source-updates';
 import {UCI_2027_RACES} from './uci-2027';
-import {loadU19Race,loadU19Races} from './u19-data';
+import {loadU19Race,loadU19Races,visibleRace} from './u19-data';
 afterEach(()=>{vi.unstubAllGlobals();vi.mocked(loadSourceUpdates).mockResolvedValue(null);});
 describe('season and detail loading',()=>{
  it('loads 2027 without fetching the 2026 archive',async()=>{
@@ -31,4 +31,23 @@ describe('season and detail loading',()=>{
   expect(fetcher.mock.calls.filter(([url])=>url.includes('/events-'))).toHaveLength(1);
   expect(fetcher).toHaveBeenCalledTimes(3);
  });
+ it('keeps reviewed discipline corrections in detail and list after live updates',async()=>{
+  vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,json:async()=>JSON.parse(readFileSync('public'+url,'utf8'))})));
+  vi.mocked(loadSourceUpdates).mockResolvedValue({schemaVersion:1,races:{'CH-SC-9170-M':{fields:{type:'Road race'},updatedAt:'2026-11-13T00:00:00Z',sourceUrl:'https://swisscycling.ch/'}}});
+  const detail=await loadU19Race('CH-SC-9170-M');
+  expect(detail?.type).toBe('Running');
+  expect(visibleRace(detail!)).toBe(false);
+  const data=await loadU19Races(undefined,undefined,2026);
+  expect(data.races.find(r=>r.id===detail?.id)?.type).toBe('Running');
+  expect(data.manifest.uniqueVisibleRecords).toBe(data.races.filter(visibleRace).length);
+  expect((await loadU19Race('CH-SC-9170-M'))?.type).toBe('Running');
+  for(const id of ['FR-FFC-C4174043003','FR-FFC-C4174048019','FR-FFC-C4174016043']) {
+    const race=data.races.find(r=>r.id===id)!;
+    expect(race.type).toContain('Discipline unconfirmed');
+    expect(race.roadUnconfirmed).toBe(1);
+  }
+  expect(data.races.find(r=>r.id==='GB-CTT-47082')?.type).toBe('Posamični kronometer');
+  expect(data.races.find(r=>r.id==='DE-RAD-43049-M')?.type).toBe('Cestna dirka');
+ });
+
 });
