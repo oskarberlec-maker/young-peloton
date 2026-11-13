@@ -42,20 +42,14 @@ def calendar_entries(page, url):
     return entries
 
 
-def detail(page, url, now):
-    """Prove one header, metropolitan location, U19 road code, season and ID."""
+def _event_header(page, url):
+    """Prove one road event header, metropolitan location, season and ID."""
     eid = event_id(url)
     if not eid or page.after('Saison') != '2027' or page.after("N° d'épreuve") != eid:
         return None
     if any(page.lines.count(label) != 1 for label in ('Saison', "N° d'épreuve", 'Code épreuve', 'Durée')):
         return None
     code = page.after('Code épreuve') or ''
-    if re.fullmatch(r'(?:[12]\.14(?:\.0)?|MJ\.(?:1|2)\.(?:1|Ncup))', code):
-        sex = 'U19M'
-    elif re.fullmatch(r'(?:[12]\.21(?:\.0)?|WJ\.(?:1|2)\.(?:1|Ncup))', code):
-        sex = 'U19W'
-    else:
-        return None
     headers = [(i, name) for i, name in enumerate(page.lines) if name in page.headings
                and i >= 2 and page.lines[i-2] == 'Route' and i+1 < len(page.lines)
                and normalized(page.lines[i+1]) in DEPARTMENTS]
@@ -63,6 +57,47 @@ def detail(page, url, now):
         return None
     i, name = headers[0]
     if not 2 <= len(name) <= 200 or any(c in name for c in '<>') or any(re.search(r'\b(?:annulee?|annulation)\b', normalized(line)) for line in page.lines):
+        return None
+    return eid, code, i, name
+
+
+def non_junior_detail(page, url):
+    """Audit explicit Men Elite UCI classes; unknown/mixed codes stay in review.
+
+    This is a reporting exclusion, never permission to modify a published race.
+    """
+    header = _event_header(page, url)
+    if not header:
+        return None
+    eid, code, i, name = header
+    if not re.fullmatch(r'ME\.[12]\.(?:PRO|Pro|1|2|UWT)', code):
+        return None
+    category_text = ' '.join([name, *(page.after(k) or '' for k in ('Catégorie', 'Catégories'))])
+    if re.search(r'\b(u19|junior\w*)\b', normalized(category_text)):
+        return None
+    race = {'id': 'FR-FFC-' + eid, 'name': name, 'date': '2027-01-01', 'enddate': '2027-01-01'}
+    observed = read_ffc(page, race, url)
+    if not observed or not all(k in observed['fields'] for k in ('date', 'enddate', 'name')):
+        return None
+    dates = {k: observed['fields'][k] for k in ('date', 'enddate')}
+    if not all(v.startswith('2027-') for v in dates.values()):
+        return None
+    validate(dates, race)
+    return {'eventId': eid, 'name': name, 'code': code, **dates,
+            'reason': 'Official event code identifies a Men Elite UCI class, not a junior class'}
+
+
+def detail(page, url, now):
+    """Prove one header, metropolitan location, U19 road code, season and ID."""
+    header = _event_header(page, url)
+    if not header:
+        return None
+    eid, code, i, name = header
+    if re.fullmatch(r'(?:[12]\.14(?:\.0)?|MJ\.(?:1|2)\.(?:1|Ncup))', code):
+        sex = 'U19M'
+    elif re.fullmatch(r'(?:[12]\.21(?:\.0)?|WJ\.(?:1|2)\.(?:1|Ncup))', code):
+        sex = 'U19W'
+    else:
         return None
     # Explicit gender in the name must not contradict the event code.
     if (sex == 'U19M' and re.search(r'\b(feminin\w*|femmes|women|dames)\b', normalized(name))
