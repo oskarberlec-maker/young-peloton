@@ -3,6 +3,18 @@ from collections import defaultdict
 from confirmations import identity
 
 
+def unique_evidence(items):
+    # Multiple race aliases/calendar windows may repeat the same observation.
+    seen, result = set(), []
+    for item in items:
+        dates = item.get('fields', item)
+        key = (item['sourceUrl'], dates['date'], dates['enddate'])
+        if key not in seen:
+            seen.add(key)
+            result.append(item)
+    return result
+
+
 def reconcile(proposals, new_editions, verified=()):
     review = []
     accepted = []
@@ -16,8 +28,8 @@ def reconcile(proposals, new_editions, verified=()):
         pairs = {(item['fields']['date'], item['fields']['enddate']) for item in evidence}
         if len(pairs) > 1:
             review.append({'raceId': rid, 'sourceUrl': evidence[0]['sourceUrl'],
-                           'reason': 'Conflicting 2027 dates from supported sources; existing dates retained',
-                           'evidence': [{'sourceUrl': item['sourceUrl'], 'fields': item['fields']} for item in evidence]})
+                           'category': 'date_conflict', 'reason': 'Conflicting 2027 dates from supported sources; existing dates retained',
+                           'evidence': unique_evidence([{'sourceUrl': item['sourceUrl'], 'fields': item['fields']} for item in evidence])})
         elif changes:
             accepted.append(changes[0])
     editions = []
@@ -28,9 +40,9 @@ def reconcile(proposals, new_editions, verified=()):
         pairs = {(item['newEdition']['date'], item['newEdition']['enddate']) for item in candidates}
         if len(pairs) > 1:
             review.append({'sourceUrl': candidates[0]['sourceUrl'],
-                           'reason': 'Conflicting 2027 edition dates; no new edition added',
-                           'evidence': [{'sourceUrl': item['sourceUrl'], 'date': item['newEdition']['date'],
-                                         'enddate': item['newEdition']['enddate']} for item in candidates]})
+                           'category': 'date_conflict', 'reason': 'Conflicting 2027 edition dates; no new edition added',
+                           'evidence': unique_evidence([{'sourceUrl': item['sourceUrl'], 'date': item['newEdition']['date'],
+                                         'enddate': item['newEdition']['enddate']} for item in candidates])})
         else:
             editions.extend(candidates)
     return accepted, editions, review

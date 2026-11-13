@@ -21,10 +21,12 @@ from discovery import edition_links
 from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, calendar_date_evidence
 from pdf_evidence import pdf_evidence
 from conflicts import reconcile
-from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail
+from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
+
+from reporting import review_category
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 6
+READER_VERSION = 7
 MAX_DISCOVERED_PER_RUN = 200
 
 
@@ -58,7 +60,12 @@ def run(args):
     races += [r for rid, r in confirmed.items() if rid not in {x['id'] for x in races}]
     by_id = {r['id']: {**r, **overlay['races'].get(r['id'], {}).get('fields', {})} for r in races}
     known_2027 = {}
+    by_identity, by_official_id = {}, {}
     for race in by_id.values():
+        if not race.get('duplicate') and race.get('state') != 'merged':
+            by_identity.setdefault(identity(race), []).append(race)
+        if race.get('officialEventId'):
+            by_official_id.setdefault(race['officialEventId'], []).append(race)
         if race['date'].startswith('2027-'):
             known_2027.setdefault(identity(race), []).append(race)
     registry = {}
@@ -190,7 +197,7 @@ def run(args):
             else:
                 # Re-read after the reader upgrade even when the source's ETag is unchanged.
                 compatible = prev.get('readerVersion') == READER_VERSION or (
-                    prev.get('readerVersion') == 5 and urlsplit(url).hostname != 'competitions.ffc.fr')
+                    prev.get('readerVersion') in (5, 6) and urlsplit(url).hostname != 'competitions.ffc.fr')
                 result = fetcher.get(url, prev if compatible else {})
             if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
                 uci_responses[url] = dict(result)
@@ -212,6 +219,7 @@ def run(args):
                 return url, record, updates, pending_review, [tuple(item) for item in prev.get('discoveryCandidates', [])]
             record.pop('uciDetail', None)
             record.pop('ffcDetail', None)
+            record.pop('ffcNonJunior', None)
             body = result.pop('body')
             raw_hash = hashlib.sha256(body).hexdigest()
             decoded = body.decode('utf-8', errors='replace')
@@ -262,6 +270,7 @@ def run(args):
                 record['ffcCalendarEntries'] = ffc_entries(page, url)
                 try:
                     record['ffcDetail'] = ffc_detail(page, url, now)
+                    record['ffcNonJunior'] = non_junior_detail(page, url) if not record['ffcDetail'] else None
                     if record['ffcDetail']:
                         supported = max(1, supported)
                 except (ValueError, KeyError, TypeError) as e:
@@ -289,6 +298,10 @@ def run(args):
             if calendar_read:
                 changed = False
             needs_review = not calendar_read and bool((target_year and not supported) or parse_errors or result['redirectedHost'] or (changed and not supported and not historical) or (prev.get('observations') and not supported) or (prev.get('needsReview') and not supported and not historical))
+            known_edition = any(by_id.get(rid, {}).get('date', '').startswith('2027-') for rid in registry[url]['races'])
+            if record.get('ffcNonJunior') and not (known_edition or supported or parse_errors or had_target_evidence or prev.get('ffcDetail')):
+                needs_review = False
+                changed = False
             record.update(result, readerVersion=READER_VERSION, historicalOnly=historical, targetYearEvidence=target_year, hadTargetEvidence=bool(had_target_evidence or observations), notModified=False, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
             for key in ('error',):
                 record.pop(key, None)
@@ -358,23 +371,33 @@ def run(args):
     counts['calendarEntriesMatchedToKnownRace'] = 0
     counts['federationDetailPagesVerified'] = 0
     counts['duplicatesSkipped'] = 0
+    counts['ffcNonJuniorEntries'] = 0
+    counts['ffcEntriesAwaitingVerification'] = 0
     for url, candidates in ffc_candidates.items():
         details = current_sources.get(url, {}).get('ffcDetail')
         if not details:
-            # Discovery is evidence to investigate, never a confirmed date.
-            review.append({'sourceUrl': url, 'reason': 'FFC calendar entry awaits unambiguous U19 road detail verification'})
+            rec = current_sources.get(url, {})
+            excluded = rec.get('ffcNonJunior')
+            if excluded and not rec.get('needsReview') and all(
+                    normalized(candidate['name']) == normalized(excluded['name']) and
+                    candidate['eventId'] == excluded['eventId'] for _, candidate in candidates):
+                counts['ffcNonJuniorEntries'] += 1
+                continue
+            counts['ffcEntriesAwaitingVerification'] += 1
+            # Missing detail is not conflicting identity or proof of eligibility.
+            review.append({'sourceUrl': url, 'reason': 'FFC calendar entry awaits unambiguous U19 road detail verification',
+                           'category': 'eligibility_unverified' if rec else 'detail_unavailable'})
             continue
         if any(normalized(candidate['name']) != normalized(details['name']) or
                'FR-FFC-' + candidate['eventId'] != details['officialEventId'] for _, candidate in candidates):
             review.append({'sourceUrl': url, 'reason': 'Conflicting FFC calendar/detail event identity'})
             continue
         counts['federationDetailPagesVerified'] += 1
-        matches = [r for r in by_id.values() if identity(r) == identity(details)
-                   and not r.get('duplicate') and r.get('state') != 'merged']
+        matches = by_identity.get(identity(details), [])
         if matches:
             counts['calendarEntriesMatchedToKnownRace'] += 1
         # A reused stable event ID with a changed identity is not a new race.
-        stable = [r for r in by_id.values() if r.get('officialEventId') == details['officialEventId']]
+        stable = by_official_id.get(details['officialEventId'], [])
         if any(identity(r) != identity(details) for r in stable):
             review.append({'sourceUrl': url, 'reason': 'Conflicting FFC stable event identity'})
             continue
@@ -561,29 +584,7 @@ def run(args):
     hosts = Counter()
     host_errors = Counter()
     for item in review:
-        reason = str(item.get('reason', ''))
-        if item.get('deferred'):
-            category = 'deferred_host'
-        elif 'HTTP Error 403' in reason or 'Forbidden' in reason:
-            category = 'blocked_403'
-        elif 'HTTP Error 429' in reason or 'rate-limit' in reason.lower():
-            category = 'rate_limited'
-        elif 'HTTP Error 404' in reason:
-            category = 'not_found_404'
-        elif 'timed out' in reason.lower() or 'timeout' in reason.lower():
-            category = 'timeout'
-        elif 'exceeds 8 MiB' in reason:
-            category = 'too_large'
-        elif 'HTTP Error' in reason or '<urlopen error' in reason or 'name resolution' in reason.lower() or 'Name or service not known' in reason:
-            category = 'other_network_error'
-        elif 'ambiguous' in reason.lower() or 'conflict' in reason.lower() or 'contradict' in reason.lower():
-            category = 'identity_conflict'
-        elif 'Mass-change' in reason or 'mass-change' in reason.lower():
-            category = 'safety_circuit_breaker'
-        elif item.get('details') or 'unparseable' in reason.lower() or 'supported reader' in reason:
-            category = 'unsupported_or_changed'
-        else:
-            category = 'needs_manual_review'
+        category = review_category(item)
         item['category'] = category
         host = urlsplit(item.get('sourceUrl', '')).hostname or 'unknown'
         item['host'] = host
@@ -596,6 +597,8 @@ def run(args):
     counts['topReviewHosts'] = [{'host': h, 'count': n} for h,n in hosts.most_common(20)]
     counts['topErrorHosts'] = [{'host': h, 'count': n} for h,n in host_errors.most_common(15)]
     counts['needsReview'] = sum(not item.get('deferred', False) for item in review)
+    counts['uniqueSourcesRequiringReview'] = len({item['sourceUrl'] for item in review
+        if item.get('sourceUrl') and not item.get('deferred')})
     counts['recognized2027Sources'] = counts['supportedSources']
     counts['sourcesWith2027Evidence'] = sum(rec.get('status') == 'ok' and rec.get('lastCheckedAt') == now and
                                             bool(rec.get('targetYearEvidence') or rec.get('observations'))
@@ -604,7 +607,7 @@ def run(args):
     counts['new2027RacesDiscovered'] = len({item['newEdition']['id'] for item in new_editions if not item['newEdition'].get('source2026Id')
                                           and item['newEdition']['id'] in added_ids})
     priority_review = sorted((item for item in review if not item.get('deferred')), key=lambda item: (
-        item.get('category') != 'identity_conflict',
+        item.get('category') not in ('date_conflict', 'identity_conflict'),
         not state['sources'].get(item.get('sourceUrl'), {}).get('targetYearEvidence', False),
         item.get('host') not in ('competitions.ffc.fr', 'www.federciclismo.it', 'cycling.vlaanderen', 'mijn.knwu.nl'),
         item.get('sourceUrl', '')))

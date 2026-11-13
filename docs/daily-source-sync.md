@@ -255,3 +255,43 @@ legacy IDs remain follow-up work. PDF evidence remains manual-review-only.
 The V6 upgrade invalidates only FFC validators; unchanged V5 readers retain
 their conditional-request caches. Subsequent checks of a newly discovered FFC
 race revalidate its strict category and stable ID even without a discovery alias.
+
+## V7: actionable review reports and conservative non-junior classification
+
+The completed scheduled V6 run 43370159673 (13 November 2026) had 7,213 review
+items. Of its 204 `identity_conflict` items, 203 were ordinary eligibility checks:
+the substring `ambiguous` also matched `unambiguous`. V7 uses word boundaries
+and explicit review categories. Missing detail pages, unverified eligibility,
+identity conflicts and date conflicts are distinct. Real date/identity conflicts
+remain first in the important-unresolved list. Identical repeated evidence from
+race aliases is displayed once, while distinct source URLs/date pairs remain.
+`uniqueSourcesRequiringReview` counts distinct non-deferred URLs, separately
+from the existing review-item counters.
+
+FFC Men Elite UCI codes are classified for reporting only, using the same strict
+single-event header, official ID, 2027 season, metropolitan location and existing
+date/duration reader. Exact calendar/detail identity must agree before counting
+an entry in `ffcNonJuniorEntries`. Unknown codes, mixed/junior labels, missing
+identity and failed fetches remain for review (`ffcEntriesAwaitingVerification`).
+Previously verified evidence or an associated 2027 race cannot be silently hidden
+by an exclusion. Classification evidence remains in state.json as `ffcNonJunior`;
+all sources are still revisited daily, including excluded events. It survives
+304 responses but cannot hide a current timeout or access restriction.
+
+Public detail markup inspected on 13 November 2026:
+- https://competitions.ffc.fr/calendrier/competition/2027/4107012001/faun-drome-classic/ (`ME.1.PRO`)
+- https://competitions.ffc.fr/calendrier/competition/2027/4107012002/faun-ardeche-classic/ (`ME.1.PRO`)
+- https://competitions.ffc.fr/calendrier/competition/2027/4892426001/paris-nice/ (`HIS.2.0`, deliberately remains unsupported)
+
+Fixtures retain event markup from these actual pages. A targeted replay of all
+three full downloaded pages tests classification, unknown codes, deduplicated
+requests, 304s and fetch failures. Reclassifying the previous report gives 203
+eligibility checks and one actual date conflict, without modifying its feed.
+
+Exact normalized identity and official-ID indexes replace repeatedly scanning
+the entire race collection for each FFC candidate. Non-FFC V5/V6 conditional
+caches remain compatible; only the changed FFC reader needs a fresh baseline.
+Publication rules, existing feeds, all 2026 records, daily schedule, transport
+limits, Retry-After and separate data publication remain unchanged. No new
+external service or dependency is required. KNWU/Italy/Belgium readers, legacy
+ID ambiguity and automatic PDF publication remain separate follow-up work.

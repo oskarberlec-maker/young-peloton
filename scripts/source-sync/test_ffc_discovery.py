@@ -111,3 +111,12 @@ class NewFFC(unittest.TestCase):
             overlay, status = scan()
             self.assertEqual(overlay['confirmed2027'], saved)
             self.assertGreater(status['needsReview'], 0)
+
+            # A later change to an elite code must flag the published edition,
+            # never hide it as an irrelevant new candidate or erase its date.
+            bodies[URLS['boucles']] = BODIES['boucles'].replace('1.14.0', 'ME.1.PRO')
+            overlay, status = scan()
+            self.assertEqual(overlay['confirmed2027'], saved)
+            self.assertEqual(status['ffcNonJuniorEntries'], 0)
+            state = json.loads((Path(folder) / 'state.json').read_text())
+            self.assertTrue(state['sources'][URLS['boucles']]['needsReview'])
