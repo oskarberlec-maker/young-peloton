@@ -43,7 +43,7 @@ await writeFile(join(publicDir,'sitemap-races-2027.xml'),
   sitemap(ids2027.map(id=>entry(base+'/race/'+encodeURIComponent(id),'2026-10-28'))));
 filenames.push('sitemap-races-2027.xml');
 await writeFile(join(publicDir,'sitemap-pages.xml'),sitemap([
-  entry(base+'/'),entry(base+'/about'),
+  entry(base+'/'),entry(base+'/about'),entry(base+'/scans'),
 ]));
 filenames.unshift('sitemap-pages.xml');
 const index='<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+

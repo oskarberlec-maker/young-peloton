@@ -1,5 +1,4 @@
 import { englishPlace } from '@/lib/u19-english';
-import { loadSourceSyncStatus, sourceReportUrl, sourceHistoryUrl, type SourceSyncStatus } from '@/lib/source-updates';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, MapPinned, RotateCcw, Search, AlertTriangle, Bookmark } from 'lucide-react';
@@ -58,8 +57,6 @@ function downloadCsv(races:U19Race[]) {
   setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
 function Index(){
-  const [sourceSync,setSourceSync]=useState<SourceSyncStatus|null>(null);
-  useEffect(()=>{const controller=new AbortController();void loadSourceSyncStatus(controller.signal).then(status=>{if(!controller.signal.aborted)setSourceSync(status);});return ()=>controller.abort();},[]);
   const [races,setRaces]=useState<U19Race[]>([]);
   const [manifest,setManifest]=useState<RaceManifest|null>(null);
   const [loadStatus,setLoadStatus]=useState('Loading races and original sources…');
@@ -240,27 +237,6 @@ function Index(){
         {linkedRace&&<div role="status" className="mb-5 rounded-lg border border-sky-300 bg-sky-50 p-4 text-slate-900">{selectedLinkedRace?<>Showing linked race: <strong>{selectedLinkedRace.name}</strong></>:'This race link is not in the current archive.'} <button type="button" className="ml-3 underline" onClick={reset}>Show all races</button></div>}
         <div id="race-results" className="mb-5 flex flex-wrap items-center justify-between gap-3 scroll-mt-4">
           <div><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.17em] text-sky-700">Season planning / {year}</p><h2 className="yp-section-heading text-3xl font-semibold tracking-tight text-slate-950">{tab==='calendar'?'Find a race':tab==='month'?'Monthly race calendar':'Racing across Europe'}</h2></div>
-          <div className="mb-3 w-full rounded-lg border p-3 text-xs text-slate-600" role="status">
-            {sourceSync ? <><strong>Daily source check:</strong> {new Date(sourceSync.lastRunAt).toLocaleString('en-GB')} · {sourceSync.successful.toLocaleString('en')} of {sourceSync.totalSources.toLocaleString('en')} sources reached · {sourceSync.supportedSources.toLocaleString('en')} sources with supported data · {sourceSync.updatedRaces} races updated.
-            {typeof sourceSync.calendarVerified2027==='number'&&<> {sourceSync.calendarVerified2027} official UCI 2027 competitions verified by ID · {sourceSync.confirmed2027Added??0} confirmed 2027 editions added.</>}
-            {sourceSync.errors>0&&<> {sourceSync.errors} sources could not be read; their previous data is retained.</>}
-            {(sourceSync.deferred??0)>0&&<> {sourceSync.deferred} sources deferred after host access denials or rate limits; these were not rechecked and their previous data is retained.</>}
-            {typeof sourceSync.historicalSources==='number'&&<> {sourceSync.historicalSources.toLocaleString('en')} historical pages without 2027 date evidence.</>}
-            {(sourceSync.discovered2027Sources??0)>0&&<> {sourceSync.discovered2027Sources} newly linked 2027 source pages checked.</>}
-            {(sourceSync.dateConflicts??0)>0&&<strong className="text-amber-800"> {sourceSync.dateConflicts} date conflicts held for review; existing dates retained.</strong>}
-            {typeof sourceSync.durationSeconds==='number'&&<> Completed in {Math.ceil(sourceSync.durationSeconds/60)} min · {sourceSync.notModified??0} unchanged responses · {sourceSync.retries??0} retries for transient failures.</>}
-            {!sourceSync.complete&&<strong className="text-amber-800"> Partial report: not all registered sources were accounted for.</strong>}
-            {typeof sourceSync.legacyIdsMapped==='number'&&<> {sourceSync.legacyIdsMapped} legacy source IDs safely linked; {sourceSync.legacyIdsUnmapped??0} unresolved (not used for automatic date corrections).</>}
-            {sourceSync.reviewCategories&&<span className="block pt-1">
-              Review breakdown: {Object.entries(sourceSync.reviewCategories).filter(([kind])=>kind!=='deferred_host').sort((a,b)=>b[1]-a[1]).slice(0,5).map(([kind,count])=>
-                <span className="mr-3" key={kind}>{kind.replaceAll('_',' ')}: {count.toLocaleString('en')}</span>)}
-            </span>}
-            {Date.now()-Date.parse(sourceSync.lastRunAt)>48*60*60*1000&&<strong className="text-amber-800"> Check overdue: last report is more than 48 hours old.</strong>}
-            </> : <>Daily source monitoring is configured. A completed run report is not currently available; showing the last available race data.</>}
-            {' '}Automatic corrections cover supported official-source fields. Other changed pages are flagged for review.
-            {' '}<a className="text-sky-700 underline" href={sourceReportUrl} target="_blank" rel="noopener noreferrer">Check report</a>
-            {' · '}<a className="text-sky-700 underline" href={sourceHistoryUrl} target="_blank" rel="noopener noreferrer">Change history</a>
-          </div>
           <nav aria-label="Race views" className="flex w-full flex-wrap gap-2">{([['calendar','List'],['month','Calendar'],['map','All races map']] as const).map(([view,label])=><Button key={view} variant={tab===view?'default':'outline'} aria-pressed={tab===view} onClick={()=>jump(view)}>{view==='map'&&<MapPinned size={16}/>} {label}</Button>)}</nav>
           {tab==='map'&&<p className="w-full text-sm text-slate-600">{linkedRace?'Location of the selected race.':'All distinct races in this season, including labelled cancellations. List filters do not apply to this map.'}</p>}
           <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">{displayedRaces.length.toLocaleString('en')} {tab==='map'?'race records':'matching records'}</span><Button variant="outline" onClick={()=>downloadCsv(dateForCalendar)} disabled={dateForCalendar.length===0}><ArrowDownToLine size={16}/> CSV</Button>
@@ -327,9 +303,10 @@ function Index(){
         </aside>
       </>}
     </div>
+    <div className="mx-auto max-w-7xl px-5 py-4 text-sm text-slate-600"><Link to="/scans" className="font-semibold text-sky-700 underline">Daily source checks & scan history</Link><p className="mt-1">Browse daily reports, source coverage and verified race updates.</p></div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
       <p>Young Peloton · European U19 road cycling calendar · {year} · Official event names remain in their published language</p>
-      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><Link to="/report" className="font-semibold underline">Report incorrect race information</Link></nav>
+      <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><Link to="/scans" className="underline">Scan history</Link><Link to="/report" className="font-semibold underline">Report incorrect race information</Link></nav>
     </footer>
   </main>;
 }

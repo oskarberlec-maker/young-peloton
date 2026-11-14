@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ReportRouteImport } from './routes/report'
+import { Route as ScansRouteImport } from './routes/scans'
 import { Route as SeasonRouteImport } from './routes/season'
 import { Route as ApiPushConfigRouteImport } from './routes/api/push-config'
 import { Route as ApiPushDispatchRouteImport } from './routes/api/push-dispatch'
@@ -31,6 +32,11 @@ const AboutRoute = AboutRouteImport.update({
 const ReportRoute = ReportRouteImport.update({
   id: '/report',
   path: '/report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScansRoute = ScansRouteImport.update({
+  id: '/scans',
+  path: '/scans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SeasonRoute = SeasonRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/report': typeof ReportRoute
+  '/scans': typeof ScansRoute
   '/season': typeof SeasonRoute
   '/api/push-config': typeof ApiPushConfigRoute
   '/api/push-dispatch': typeof ApiPushDispatchRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/report': typeof ReportRoute
+  '/scans': typeof ScansRoute
   '/season': typeof SeasonRoute
   '/api/push-config': typeof ApiPushConfigRoute
   '/api/push-dispatch': typeof ApiPushDispatchRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/report': typeof ReportRoute
+  '/scans': typeof ScansRoute
   '/season': typeof SeasonRoute
   '/api/push-config': typeof ApiPushConfigRoute
   '/api/push-dispatch': typeof ApiPushDispatchRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/report'
+    | '/scans'
     | '/season'
     | '/api/push-config'
     | '/api/push-dispatch'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/report'
+    | '/scans'
     | '/season'
     | '/api/push-config'
     | '/api/push-dispatch'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/report'
+    | '/scans'
     | '/season'
     | '/api/push-config'
     | '/api/push-dispatch'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ReportRoute: typeof ReportRoute
+  ScansRoute: typeof ScansRoute
   SeasonRoute: typeof SeasonRoute
   ApiPushConfigRoute: typeof ApiPushConfigRoute
   ApiPushDispatchRoute: typeof ApiPushDispatchRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/report'
       fullPath: '/report'
       preLoaderRoute: typeof ReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scans': {
+      id: '/scans'
+      path: '/scans'
+      fullPath: '/scans'
+      preLoaderRoute: typeof ScansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/season': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ReportRoute: ReportRoute,
+  ScansRoute: ScansRoute,
   SeasonRoute: SeasonRoute,
   ApiPushConfigRoute: ApiPushConfigRoute,
   ApiPushDispatchRoute: ApiPushDispatchRoute,

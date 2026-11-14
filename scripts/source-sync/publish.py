@@ -7,9 +7,10 @@ from pathlib import Path
 import sys
 import urllib.request
 import urllib.error
+from scan_archive import append_scan
 
 BRANCH = 'race-source-data'
-FILES = ['state.json', 'overrides.json', 'history.json', 'status.json', 'report.json']
+FILES = ['state.json', 'overrides.json', 'history.json', 'status.json', 'report.json', 'scans.json']
 OUT = Path('sync-data')
 REPO = os.environ['GITHUB_REPOSITORY']
 TOKEN = os.environ['GH_TOKEN']
@@ -47,6 +48,11 @@ def restore():
             raw = base64.b64decode(blob['content'])
             json.loads(raw)  # Don't carry corrupt snapshots into a new run.
             (OUT / name).write_bytes(raw)
+    # Preserve the restored run too, including a run completed by an older
+    # scanner while the archive feature was being deployed.
+    if (OUT / 'status.json').exists():
+        append_scan(OUT, json.loads((OUT / 'status.json').read_text()), REPO,
+                    f'https://raw.githubusercontent.com/{REPO}/{sha}/report.json')
 
 
 def publish():
@@ -56,15 +62,19 @@ def publish():
     status = json.loads((OUT / 'status.json').read_text())
     if status.get('mode') != 'live' or not status.get('complete'):
         raise RuntimeError('Only complete live scans may be published')
+    report_path = append_scan(OUT, status, REPO)
+    base_tree = api('/git/commits/' + previous)['tree']['sha'] if previous else None
     tree = []
     for name in FILES:
         raw = (OUT / name).read_text()
         blob = api('/git/blobs', {'content': raw, 'encoding': 'utf-8'})
         tree.append({'path': name, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
+    tree.append({'path': report_path, 'mode': '100644', 'type': 'blob',
+                 'sha': next(entry['sha'] for entry in tree if entry['path'] == 'report.json')})
     # This branch serves JSON snapshots, not a deployable application.
     tree.append({'path': 'vercel.json', 'mode': '100644', 'type': 'blob',
                  'content': json.dumps({'git': {'deploymentEnabled': False}})})
-    tree_sha = api('/git/trees', {'tree': tree})['sha']
+    tree_sha = api('/git/trees', {'tree': tree, **({'base_tree': base_tree} if base_tree else {})})['sha']
     commit = api('/git/commits', {'message': 'Daily source check: ' + status['lastRunAt'] + ' (' + str(status['updatedRaces']) + ' race updates)', 'tree': tree_sha, 'parents': [previous] if previous else []})
     if previous:
         api('/git/refs/heads/' + BRANCH, {'sha': commit['sha'], 'force': False}, 'PATCH')

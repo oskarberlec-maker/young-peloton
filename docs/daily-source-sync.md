@@ -295,3 +295,21 @@ Publication rules, existing feeds, all 2026 records, daily schedule, transport
 limits, Retry-After and separate data publication remain unchanged. No new
 external service or dependency is required. KNWU/Italy/Belgium readers, legacy
 ID ambiguity and automatic PDF publication remain separate follow-up work.
+
+
+## Public scan history
+
+`/scans` groups published run summaries by Europe/Ljubljana date, including
+zero-change runs and multiple runs on one day. `public/data/scan-history.json`
+backfills 30 existing reports from data-branch commits (28 October–13 November
+2026); each full-report link is pinned to its original commit. It also provides
+a fallback if the live archive cannot be read. No report is invented for a
+missing day or an in-progress/failed workflow.
+
+The publisher restores and appends `scans.json`, keyed by `lastRunAt`, and writes
+each future full report to `scans/<numeric timestamp>.json`. It builds on the
+previous tree so old report files survive subsequent publications. Restore also
+indexes the previous snapshot with an immutable commit link, preserving scans
+produced by older workflow versions during rollout. Existing complete/live and
+concurrent-head checks still apply. The homepage links to history below the
+race area and in the footer instead of loading the technical status panel.
