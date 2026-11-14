@@ -119,6 +119,10 @@ def run(args):
     federation_seeds = list(calendar_seeds()) if not args.fixtures and any(r.get('countryCode') == 'FR' for r in races) else []
     for url in federation_seeds:
         registry.setdefault(url, {'races': set(), 'primary': set(), 'secondary': set()})
+    # User-requested Swedish calendar: monitor availability without treating
+    # a generic landing page as verified evidence for any individual race.
+    if not args.fixtures and any(r.get('countryCode') == 'SE' for r in races):
+        registry.setdefault('https://swecyclingonline.se/', {'races': set(), 'primary': set(), 'secondary': set()})
     known_names = {}
     for race in races:
         known_names.setdefault(normalized(race['name']), []).append(race)
