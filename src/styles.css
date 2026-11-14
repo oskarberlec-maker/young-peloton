@@ -83,8 +83,8 @@
   }
 
   ::selection {
-    background-color: var(--color-lime);
-    color: var(--color-lime-foreground);
+    background-color: #2563eb;
+    color: #ffffff;
   }
 }
 
