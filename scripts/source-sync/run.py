@@ -18,15 +18,15 @@ from core import canonical, Page, normalized
 from catalogue import linked_source_catalogue, excel_result_sources
 from transport import Fetcher, DeferredSource
 from discovery import edition_links
-from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, calendar_date_evidence
+from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, has_year_dates, calendar_date_evidence
 from pdf_evidence import pdf_evidence
 from conflicts import reconcile
 from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
 
-from reporting import review_category
+from reporting import review_category, coverage
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 7
+READER_VERSION = 8
 MAX_DISCOVERED_PER_RUN = 200
 
 
@@ -199,9 +199,9 @@ def run(args):
                     raise ValueError('No test fixture for source')
                 result = {'body': fixture.read_bytes(), 'contentType': 'text/html', 'finalUrl': url, 'redirectedHost': False, 'httpStatus': 200}
             else:
-                # Re-read after the reader upgrade even when the source's ETag is unchanged.
-                compatible = prev.get('readerVersion') == READER_VERSION or (
-                    prev.get('readerVersion') in (5, 6) and urlsplit(url).hostname != 'competitions.ffc.fr')
+                # V8 narrows historical-page detection; re-read old classifications
+                # once even if the source's ETag is unchanged.
+                compatible = prev.get('readerVersion') == READER_VERSION
                 result = fetcher.get(url, prev if compatible else {})
             if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
                 uci_responses[url] = dict(result)
@@ -290,7 +290,7 @@ def run(args):
                 parse_errors.append({'raceId': missing_id, 'reason': 'Previously supported 2027 evidence is no longer present'})
             target_year = bool(page is not None and has_2027_dates(page))
             had_target_evidence = bool(prev.get('hadTargetEvidence') or prev.get('observations'))
-            historical = bool(page is not None and '2026' in url + '\n'.join(page.lines) + json.dumps(page.ld)
+            historical = bool(page is not None and (re.search(r'(?<!\d)2026(?!\d)', url) or has_year_dates(page, 2026))
                               and not target_year and not supported and not had_target_evidence)
             changed = bool(prev.get('hash') and prev['hash'] != page_hash)
             if historical:
@@ -622,6 +622,7 @@ def run(args):
     counts['retries'] = fetcher.retries
     counts['deferredHosts'] = dict(sorted(fetcher.blocked.items()))
     counts['durationSeconds'] = round(time.monotonic() - started, 2)
+    counts.update(coverage(registry, state['sources'], by_id, now))
     state['hostCooldowns'] = {host: until for host, until in fetcher.cooldowns.items() if until > time.time()}
     finished = dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
     # Keep history complete in the data branch (Git also preserves prior snapshots).

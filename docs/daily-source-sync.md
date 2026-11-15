@@ -313,3 +313,29 @@ indexes the previous snapshot with an immutable commit link, preserving scans
 produced by older workflow versions during rollout. Existing complete/live and
 concurrent-head checks still apply. The homepage links to history below the
 race area and in the footer instead of loading the technical status panel.
+# V8: scheduled fallbacks and clearer source coverage
+
+- The primary schedule remains 04:17 UTC (05:17 CET / 06:17 CEST). Two fallback
+  triggers at 06:47 and 08:47 UTC reduce dependence on a single GitHub scheduled
+  event. GitHub can delay any scheduled event; these are not guaranteed start times.
+- After restoring the last published snapshot, scheduled runs skip expensive work
+  if a complete live report already finished on the same Europe/Ljubljana date.
+  Push and manual runs always execute. The existing concurrency group serializes
+  publishers. Failed, incomplete, missing, malformed and future-dated reports do
+  not suppress a scan. A skipped run never republishes the restored report.
+- Three consecutively failed resources on one host, each exhausting its existing
+  bounded network/server-error retries, defer that host for the rest of the run.
+  Successful responses (including 304) reset the streak. Individual 404s do not
+  trip this breaker. Other hosts continue; the next run tries the host again.
+- `sourceOutcomes` and `countryCoverage` in the report distinguish structured
+  evidence, calendar discovery, explicit non-junior exclusions, pages requiring a
+  reader/review, historical pages, pages with no detected target-year evidence,
+  errors and deferred sources. These are disjoint source outcomes, not counts of
+  newly published races. Shared sources count once per associated country, so
+  country totals can overlap. Stale attempts from prior runs are excluded.
+- A bare 2026 copyright/footer no longer makes a homepage a historical calendar.
+  Historical classification requires a 2026 URL or date-shaped 2026 evidence and
+  no target-year evidence. No detected 2027 evidence does **not** prove that no
+  2027 races have been published. V8 re-reads older snapshots once to reclassify.
+- All existing category, identity, date-conflict and publication safeguards remain
+  in place. This version does not claim a new Swedish event parser.

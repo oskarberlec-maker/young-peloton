@@ -29,6 +29,7 @@ class Fetcher:
         self.last = {}
         self.blocked = {}
         self.denials = {}
+        self.transient_failures = {}
         self.cooldowns = {}
         self.requests = self.retries = 0
         self.opener = urllib.request.build_opener(NoRedirect())
@@ -79,10 +80,14 @@ class Fetcher:
                         if len(body) > MAX_BYTES:
                             raise ValueError('Source exceeds 8 MiB limit; manual reader required')
                         self.denials[host] = 0
+                        self.transient_failures[host] = 0
                         return result
                     except urllib.error.HTTPError as error:
+                        if error.code not in (408, 500, 502, 503, 504):
+                            self.transient_failures[host] = 0
                         if error.code == 304:
                             self.denials[host] = 0
+                            self.transient_failures[host] = 0
                             return {'notModified': True, 'httpStatus': 304}
                         if error.code in (301, 302, 303, 307, 308):
                             url = canonical(urljoin(url, error.headers.get('Location', '')))
@@ -101,6 +106,8 @@ class Fetcher:
                             self.remember_cooldown(host, error.headers.get('Retry-After'))
                             raise
                         if error.code not in (408, 500, 502, 503, 504) or attempt == 2:
+                            if error.code in (408, 500, 502, 503, 504):
+                                self.failed_resource(host)
                             raise
                         retry_after = error.headers.get('Retry-After')
                         if retry_after:
@@ -112,6 +119,7 @@ class Fetcher:
                             retry_delay = max(retry_delay, int(retry_after))
                     except (urllib.error.URLError, TimeoutError, ConnectionError, socket.gaierror) as error:
                         if attempt == 2 or (isinstance(error, socket.gaierror) and error.errno != socket.EAI_AGAIN):
+                            self.failed_resource(host)
                             raise
                     finally:
                         self.last[host] = time.monotonic()
@@ -119,6 +127,13 @@ class Fetcher:
                         self.retries += 1
                     time.sleep(retry_delay)
         raise ValueError('Too many redirects')
+
+    def failed_resource(self, host):
+        # Called under this host's lock, only after a resource exhausted retries.
+        # A success resets the streak; other hosts and next run are unaffected.
+        self.transient_failures[host] = self.transient_failures.get(host, 0) + 1
+        if self.transient_failures[host] >= 3:
+            self.blocked[host] = 'Repeated network/server failures; remaining host sources deferred until the next run'
 
     def remember_cooldown(self, host, value):
         if not value:

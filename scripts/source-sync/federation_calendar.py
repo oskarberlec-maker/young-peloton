@@ -116,9 +116,16 @@ def federation_category(page, race, url):
 
 def has_2027_dates(page):
     """A year in navigation/copyright is not race date evidence."""
+    return has_year_dates(page, 2027)
+
+
+def has_year_dates(page, year):
+    """Detect date-shaped evidence, never a bare footer/copyright year."""
     import json
     text = '\n'.join(page.lines) + '\n' + json.dumps(page.ld) + '\n' + json.dumps(page.props)
-    return bool(re.search(r'\b2027-\d{2}-\d{2}\b|\b\d{1,2}[/.]\d{1,2}[/.]2027\b|\b\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+2027\b', text))
+    year = re.escape(str(year))
+    return bool(re.search(r'\b' + year + r'-\d{2}-\d{2}\b|\b\d{1,2}[/.]\d{1,2}[/.]' + year +
+                          r'\b|\b\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+' + year + r'\b', text))
 
 
 def calendar_date_evidence(page, source_url):
