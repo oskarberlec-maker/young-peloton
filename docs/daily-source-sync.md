@@ -339,3 +339,30 @@ race area and in the footer instead of loading the technical status panel.
   2027 races have been published. V8 re-reads older snapshots once to reclassify.
 - All existing category, identity, date-conflict and publication safeguards remain
   in place. This version does not claim a new Swedish event parser.
+
+
+### Reader V9: explicit junior eligibility (2026-11-16)
+
+V9 adds FFC Coupe de France U19 codes 3.74/3.74.0 (one-day) and
+3.75/3.75.0 (stages), and junior UCI class 2 and space-separated codes.
+The shared code reader is used both for new events and linked editions.
+Mapping source: [FFC calendar codification, 26 October 2026](https://ffc.fr/app/uploads/sites/2/2026/06/Titre-I-Annexe-II-Organisations-au-calendrier-FFC-20261026.pdf).
+Stage/result suffixes E/G remain unsupported to avoid publishing a stage as a race.
+An explicit Contre la Montre event title yields Time trial, not Road race.
+
+FFC metadata now joins nested spans inside official label/value rows. Inline
+label:value fields (including FCI categories) and label colon variants are read;
+duplicate fields are rejected. A new FFC event with an unmapped 1.x/2.x code can
+be confirmed only when its structured event category exclusively states U19 or
+Junior plus one gender. Menus, titles alone, mixed age fields, missing gender,
+contradictory known elite codes and conflicting explicit categories cannot
+supply this evidence. Existing identity, road header, season, metropolitan
+location, exact date/duration and calendar/detail conflict checks still apply.
+
+Live verification against four previously unresolved FFC details confirmed:
+Pévèle Carembault Classic (4 April 2027), La Classique des Pyrénées (8 May),
+Contre La Montre Champenois (16 May), and Ronde de Saône et Loire U19 (23 July
+start). This is reader verification, not a claim that all four are new to the
+published catalogue; the normal pipeline still deduplicates them.
+The captured Pévèle event header is a regression fixture. V9 increments the
+reader version so cached V8 observations are not reused without rereading.

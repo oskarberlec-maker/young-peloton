@@ -26,7 +26,7 @@ from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail,
 from reporting import review_category, coverage
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 8
+READER_VERSION = 9
 MAX_DISCOVERED_PER_RUN = 200
 
 

@@ -58,14 +58,14 @@ class NewFFC(unittest.TestCase):
         self.assertIsNotNone(detail(Page(BODIES['brenne']), URLS['brenne'].replace('/2027/', '/'), NOW))
         self.assertIsNone(detail(Page(BODIES['brenne'].replace('2027', '2026')), URLS['brenne'], NOW))
 
-    def test_publish_deduplicate_304_and_conflict(self):
+    def test_publish_deduplicate_304_and_conflict(self, code="1.14.0"):
         # Dummy archive row inventories only the official calendar. Neither actual
         # event is present in the archive: both must reach the automatic feed.
         archive = {'id': 'archive', 'name': 'Unrelated archived race', 'date': '2026-03-01',
                    'enddate': '2026-03-01', 'sourceUrl': PARENT, 'countryCode': 'FR', 'sex': 'M'}
         calendar = '\n'.join(anchor for anchor in __import__('re').findall(r'<a\b.*?</a>', BODIES['march'], __import__('re').S)
                              if 'brenne' in anchor or '/4877114003/' in anchor)
-        bodies = {PARENT: calendar, **{URLS[key]: BODIES[key] for key in URLS}}
+        bodies = {PARENT: calendar, **{URLS[key]: BODIES[key].replace('1.14.0', code) for key in URLS}}
         cached = False
         def get(fetcher, url, prev):
             if url == CALENDAR:
