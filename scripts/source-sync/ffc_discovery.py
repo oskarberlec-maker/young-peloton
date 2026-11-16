@@ -7,6 +7,7 @@ import re
 from urllib.parse import urlsplit, urljoin
 from core import canonical, normalized, read_ffc, validate
 from confirmations import edition
+from ffc_categories import junior_code
 from federation_calendar import calendar_date_evidence
 
 # Explicit metropolitan department in the event header establishes France and
@@ -47,7 +48,7 @@ def _event_header(page, url):
     eid = event_id(url)
     if not eid or page.after('Saison') != '2027' or page.after("N° d'épreuve") != eid:
         return None
-    if any(page.lines.count(label) != 1 for label in ('Saison', "N° d'épreuve", 'Code épreuve', 'Durée')):
+    if any(len(page.values(label)) != 1 for label in ('Saison', "N° d'épreuve", 'Code épreuve', 'Durée')):
         return None
     code = page.after('Code épreuve') or ''
     headers = [(i, name) for i, name in enumerate(page.lines) if name in page.headings
@@ -87,25 +88,56 @@ def non_junior_detail(page, url):
             'reason': 'Official event code identifies a Men Elite UCI class, not a junior class'}
 
 
+def explicit_junior_category(page, code):
+    """Accept an exclusive event category, never a title/menu or an open field.
+
+    Unmapped national codes require explicit U19 plus gender in event metadata.
+    Known elite/U23 codes cannot be overridden by contradictory category text.
+    """
+    if re.match(r'^(?:ME|WE|MU|WU)\.', code, re.I) or re.fullmatch(r'[12]\.(?:12\.1|(?:13|23|28|30|31|33|36|37|43|45|46|51)(?:\.0)?)', code):
+        return None
+    values = [v for key in ('categorie', 'categories') for v in page.event_fields.get(key, [])]
+    if len(values) != 1:
+        return None
+    value = normalized(values[0])
+    male = r'(?:hommes|homme|masculins?|men|h)'
+    female = r'(?:femmes|femme|feminines?|women|f)'
+    junior = r'(?:u\s*[-]?\s*19|juniors?)'
+    for gender, sex in ((male, 'U19M'), (female, 'U19W')):
+        if re.fullmatch(r'(?:' + junior + r'\s+' + gender + '|' + gender + r'\s+' + junior + ')', value):
+            return sex
+    return None
+
+
 def detail(page, url, now):
     """Prove one header, metropolitan location, U19 road code, season and ID."""
     header = _event_header(page, url)
     if not header:
         return None
     eid, code, i, name = header
-    if re.fullmatch(r'(?:[12]\.14(?:\.0)?|MJ\.(?:1|2)\.(?:1|Ncup))', code):
-        sex = 'U19M'
-    elif re.fullmatch(r'(?:[12]\.21(?:\.0)?|WJ\.(?:1|2)\.(?:1|Ncup))', code):
-        sex = 'U19W'
+    classification = junior_code(code)
+    if classification:
+        sex, kind = classification
     else:
+        sex = explicit_junior_category(page, code)
+        if not sex:
+            return None
+        # An unknown event format cannot safely be labelled a one-day road race.
+        if not code.startswith(('1.', '2.')):
+            return None
+        kind = 'Stage race' if code.startswith('2.') else 'Road race'
+    categories = [v for key in ('categorie', 'categories') for v in page.event_fields.get(key, [])]
+    if categories and explicit_junior_category(page, '') != sex:
         return None
+    if kind == 'Road race' and re.search(r'\bcontre[ -]la[ -]montre\b', normalized(name)):
+        kind = 'Time trial'
     # Explicit gender in the name must not contradict the event code.
     if (sex == 'U19M' and re.search(r'\b(feminin\w*|femmes|women|dames)\b', normalized(name))
             or sex == 'U19W' and re.search(r'\b(masculin\w*|hommes|men)\b', normalized(name))):
         return None
     base = {'id': 'FR-FFC-' + eid, 'name': name, 'countryCode': 'FR', 'country': 'France',
             'sex': sex, 'date': '2027-01-01', 'enddate': '2027-01-01', 'place': page.lines[i+1],
-            'type': 'Stage race' if code.startswith(('2.', 'MJ.2.', 'WJ.2.')) else 'Road race',
+            'type': kind,
             'confirmation': 'U19 confirmed', 'lat': None, 'lon': None, 'precision': '',
             'region': '', 'roadUnconfirmed': 0, 'source2026Id': ''}
     observed = read_ffc(page, base, url)
