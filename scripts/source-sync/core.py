@@ -61,6 +61,7 @@ class Page(HTMLParser):
         self.links = []
         self.anchor = None
         self.feed(text)
+        self.event_fields = EventFields(text).fields
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -104,11 +105,64 @@ class Page(HTMLParser):
             if self.anchor is not None:
                 self.anchor[1] += value
 
+    def values(self, label):
+        key = normalized(label).rstrip(' :')
+        if key in self.event_fields:
+            return self.event_fields[key]
+        values = []
+        for i, line in enumerate(self.lines):
+            text = normalized(line).rstrip(' :')
+            if text == key and i + 1 < len(self.lines):
+                values.append(self.lines[i + 1])
+            elif ':' in line:
+                left, right = line.split(':', 1)
+                if normalized(left).rstrip() == key and right.strip():
+                    values.append(right.strip())
+        return values
+
     def after(self, label):
-        try:
-            return self.lines[self.lines.index(label) + 1]
-        except (ValueError, IndexError):
-            return None
+        values = self.values(label)
+        return values[0] if len(values) == 1 else None
+
+
+class EventFields(HTMLParser):
+    """FFC event metadata only: join nested spans without reading page menus."""
+    def __init__(self, text):
+        super().__init__(convert_charrefs=True)
+        self.fields, self.stack = {}, []
+        self.row = None
+        self.feed(text)
+        if self.row and self.row['label'].strip() and self.row['value'].strip():
+            self.fields.setdefault(normalized(self.row['label']).rstrip(' :'), []).append(' '.join(self.row['value'].split()))
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('br', 'img', 'input', 'hr', 'meta', 'link', 'wbr'):
+            return
+        classes = dict(attrs).get('class', '').split()
+        if 'info-principale' in classes:
+            self.row = {'label': '', 'value': ''}
+        role = ('label' if 'titreValeur-titre' in classes else
+                'value' if 'titreValeur-valeur' in classes else None)
+        self.stack.append((tag, role, 'info-principale' in classes))
+
+    def handle_data(self, text):
+        if self.row is not None:
+            role = next((role for _, role, _ in reversed(self.stack) if role), None)
+            if role:
+                self.row[role] += text
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                closed = self.stack[i:]
+                del self.stack[i:]
+                if any(row for _, _, row in closed) and self.row is not None:
+                    key = normalized(self.row['label']).rstrip(' :')
+                    value = ' '.join(self.row['value'].split())
+                    if key and value:
+                        self.fields.setdefault(key, []).append(value)
+                    self.row = None
+                break
 
 
 def read_uci(page, race, url):
