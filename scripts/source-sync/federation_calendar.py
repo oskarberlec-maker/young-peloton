@@ -4,6 +4,7 @@ from html.parser import HTMLParser
 import re
 from urllib.parse import urljoin, urlsplit, urlencode
 from core import normalized, canonical
+from ffc_categories import junior_code
 
 FFC = 'https://competitions.ffc.fr'
 
@@ -94,16 +95,9 @@ def federation_category(page, race, url):
                 return 'FR', ''
         code = page.after('Code épreuve') or ''
         category = ' '.join(page.after(k) or '' for k in ('Catégorie', 'Catégories'))
-        if re.match(r'^MJ(?:\.|$)', code):
-            category += ' U19 men'
-        elif re.match(r'^WJ(?:\.|$)', code):
-            category += ' U19 women'
-        # Published FFC road codification: federal U19 men/women, one-day or stages.
-        # https://ffc.fr/app/uploads/sites/2/2024/04/Codification-epreuves-route-bareme-points.pdf
-        if re.fullmatch(r'[12]\.14(?:\.0)?', code):
-            category += ' U19 men'
-        elif re.fullmatch(r'[12]\.21(?:\.0)?', code):
-            category += ' U19 women'
+        classification = junior_code(code)
+        if classification:
+            category += ' U19 ' + ('men' if classification[0] == 'U19M' else 'women')
         # U19 is explicit category evidence; a generic name such as Junior Tour is not.
         for heading in page.headings:
             if normalized(heading) == normalized(race['name']) and re.search(r'\bu19\b', normalized(heading)):
