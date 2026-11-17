@@ -68,7 +68,8 @@ export function PushNotificationPanel({savedCount}:{savedCount:number}) {
       <ShieldCheck size={15} className="mt-0.5 shrink-0"/>
       No account required. To deliver relevant alerts, the server stores your device's push subscription
       and protected fingerprints of the 2026 race IDs you've saved—not your name or email. You can disable notifications at any time.
-      Browser and installed-app saved lists may be separate.
+      Browser and installed-app saved lists may be separate.{' '}
+      <a href="/privacy.html#notifications" className="underline">Privacy notice and your rights</a>
     </p>
   </section>;
 }

@@ -306,6 +306,7 @@ function Index(){
     <div className="mx-auto max-w-7xl px-5 py-4 text-sm text-slate-600"><Link to="/scans" className="font-semibold text-sky-700 underline">Daily source checks & scan history</Link><p className="mt-1">Browse daily reports, source coverage and verified race updates.</p></div>
     <footer className="mt-8 border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
       <p>Young Peloton · European U19 road cycling calendar · {year} · Official event names remain in their published language</p>
+      <a href="/privacy.html" className="mt-3 inline-block underline">Privacy notice</a>
       <nav aria-label="Project information" className="mt-3 flex flex-wrap justify-center gap-4"><Link to="/season" className="underline">Saved on this device</Link><a className="underline" href="/about">About & methodology</a><Link to="/scans" className="underline">Scan history</Link><Link to="/report" className="font-semibold underline">Report incorrect race information</Link></nav>
     </footer>
   </main>;
