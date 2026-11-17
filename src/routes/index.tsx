@@ -43,7 +43,7 @@ function downloadCsv(races:U19Race[]) {
     ['Race ID',r=>r.id],['Race',r=>r.name],['Country',r=>countryLabel(r.countryCode,r.country)],['Location',r=>r.place],
     ['Date',r=>r.date],['End date',r=>r.enddate],['Category',r=>englishCategory(r.sex)],['Type',r=>englishRaceType(r.type)],
     ['U19 status',r=>englishConfirmation(r.confirmation)],['Race level',r=>getRaceLevel(r).label],['Race sublevel',r=>getRaceLevel(r).subtype],['Level evidence type',r=>getRaceLevel(r).method],['Level basis',r=>getRaceLevel(r).basis],['Race state',r=>r.state],['Notice',r=>englishRaceNote(r.status)],
-    ['Entry method',r=>entryLabel(r)],['Entry evidence',r=>getRaceEntry(r)?.sourceUrl||''],['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],['Results',r=>r.resultUrl],
+    ['Entry method',r=>entryLabel(r)],['Entry evidence',r=>getRaceEntry(r)?.sourceUrl||''],['Source',r=>r.sourceUrl],['U19 evidence',r=>r.proofUrl||r.sourceUrl],
   ];
   const safeCell=(value:string)=>{
     let s=value||'';

@@ -1,42 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { sourceLabel } from '@/lib/source-label';
 import { RACE_ENTRY } from '@/lib/race-entry';
 
-type ExtraSources = Record<string,string[]>;
-const indexFor = (id:string) => [...id].reduce((sum,char)=>sum+char.charCodeAt(0),0)%16;
-const safeUrl = (value:unknown):value is string =>
-  typeof value==='string' && /^https?:\/\//i.test(value) && value.length<4000;
-
+// Only explicitly categorized planning links are published. The legacy
+// auxiliary archive mixes calendar evidence with result portals.
 export function RaceSourceLinks({raceId}:{raceId:string}) {
-  const [links,setLinks]=useState<string[]>([]);
-  const [loading,setLoading]=useState(true);
-  useEffect(()=>{
-    const abort=new AbortController();
-    setLinks([]);setLoading(true);
-    fetch('/data/2026/source-links-'+indexFor(raceId)+'.json',{signal:abort.signal})
-      .then(async response => {if(!response.ok)throw new Error('Source index unavailable');return response.json() as Promise<ExtraSources>})
-      .then(data=>{if(!abort.signal.aborted)setLinks(Array.isArray(data[raceId])?data[raceId].filter(safeUrl):[]);})
-      .catch(()=>{if(!abort.signal.aborted)setLinks([]);})
-      .finally(()=>{if(!abort.signal.aborted)setLoading(false);});
-    return ()=>abort.abort();
-  },[raceId]);
-  const unique=useMemo(()=>{
-    const entry=RACE_ENTRY[raceId];
-    return [...new Set([entry?.technicalGuideUrl,entry?.registrationUrl,...links].filter(safeUrl))];
-  }, [links,raceId]);
-  if(loading)return <p className="mt-2 text-xs text-muted-foreground">Loading additional source links…</p>;
-  if(!unique.length)return <p className="mt-2 text-xs text-muted-foreground">
-    No independently linked auxiliary sources for this race. The original race source is listed above.
+  const entry = RACE_ENTRY[raceId];
+  const links = [
+    {url: entry?.technicalGuideUrl, label: 'Technical guide'},
+    {url: entry?.registrationUrl, label: 'Registration'},
+  ].filter((link): link is {url:string;label:string} =>
+    typeof link.url === 'string' && /^https?:\/\//i.test(link.url));
+  if (!links.length) return <p className="mt-2 text-xs text-muted-foreground">
+    No separate technical guide or registration link is available. Consult the official race source.
   </p>;
-  return <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-    {unique.slice(0,35).map((url,i)=><a key={url} href={url}
-      target="_blank" rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 break-all text-sky-700 underline underline-offset-4 hover:text-sky-900">
-      {url===RACE_ENTRY[raceId]?.technicalGuideUrl?'Technical guide':url===RACE_ENTRY[raceId]?.registrationUrl?'Registration':sourceLabel(url)}<ArrowUpRight size={13} aria-hidden="true"/>
+  return <div className="mt-2 flex flex-wrap gap-4 text-xs">
+    {links.map(({url,label}) => <a key={label} href={url} target="_blank"
+      rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 underline">
+      {label}<ArrowUpRight size={13} aria-hidden="true"/>
     </a>)}
-    {unique.length>35&&<p className="basis-full text-xs text-muted-foreground">
-      {unique.length-35} other archived URLs are recorded but not shown here.
-    </p>}
   </div>;
 }
