@@ -21,12 +21,12 @@ from discovery import edition_links
 from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, has_year_dates, calendar_date_evidence
 from pdf_evidence import pdf_evidence
 from conflicts import reconcile
-from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
+from ffc_discovery import event_id as ffc_event_id, calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
 
 from reporting import review_category, coverage
 
 ROOT = Path(__file__).resolve().parents[2]
-READER_VERSION = 9
+READER_VERSION = 10
 MAX_DISCOVERED_PER_RUN = 200
 
 
@@ -199,9 +199,10 @@ def run(args):
                     raise ValueError('No test fixture for source')
                 result = {'body': fixture.read_bytes(), 'contentType': 'text/html', 'finalUrl': url, 'redirectedHost': False, 'httpStatus': 200}
             else:
-                # V8 narrows historical-page detection; re-read old classifications
-                # once even if the source's ETag is unchanged.
-                compatible = prev.get('readerVersion') == READER_VERSION
+                # Only FFC event detail parsing changed since V9.
+                compatible = prev.get("readerVersion") == READER_VERSION or (
+                    prev.get("readerVersion") == 9 and not ffc_event_id(url)
+                )
                 result = fetcher.get(url, prev if compatible else {})
             if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
                 uci_responses[url] = dict(result)
