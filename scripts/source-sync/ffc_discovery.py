@@ -123,11 +123,14 @@ def detail(page, url, now):
         if not sex:
             return None
         # An unknown event format cannot safely be labelled a one-day road race.
-        if not code.startswith(('1.', '2.')):
+        if not re.fullmatch(r'[12]\.\d+(?:\.\d+)?', code):
             return None
         kind = 'Stage race' if code.startswith('2.') else 'Road race'
     categories = [v for key in ('categorie', 'categories') for v in page.event_fields.get(key, [])]
-    if categories and explicit_junior_category(page, '') != sex:
+    # A recognised junior code already establishes gender. A single age-only
+    # category corroborates it; mixed or conflicting labels still require review.
+    age_only = len(categories) == 1 and re.fullmatch(r'u[ -]?19|juniors?', normalized(categories[0]))
+    if categories and not (classification and age_only) and explicit_junior_category(page, '') != sex:
         return None
     if kind == 'Road race' and re.search(r'\bcontre[ -]la[ -]montre\b', normalized(name)):
         kind = 'Time trial'
