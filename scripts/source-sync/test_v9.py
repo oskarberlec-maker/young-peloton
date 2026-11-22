@@ -51,6 +51,14 @@ class V9(unittest.TestCase):
         for code in ('ME.1.PRO', '1.13', '1.13.0', '1.31.0', '1.43.0'):
             self.assertIsNone(detail(Page(BODY.replace('3.74.0', code) + category('U19 Hommes')), URL, NOW))
 
+    def test_age_only_category_needs_a_whole_event_junior_code(self):
+        for label in ('U19', 'U-19', 'Juniors'):
+            self.assertEqual(detail(Page(BODY + category(label)), URL, NOW)['sex'], 'U19M')
+        for code in ('2.14.E', '1.14.G', '1.99.unrecognised'):
+            body = BODY.replace('3.74.0', code) + category('U19 Hommes')
+            self.assertIsNone(detail(Page(body), URL, NOW))
+        self.assertIsNone(detail(Page(BODY + category('U19 / U23')), URL, NOW))
+
     def test_identity_discipline_and_conflicting_dates_still_fail(self):
         for body in (BODY.replace('Route', 'Piste'), BODY.replace('4759102002', '4759102003'), BODY.replace('2027', '2026'), BODY + '<p>Épreuve annulée</p>'):
             self.assertIsNone(detail(Page(body), URL, NOW))
