@@ -4,6 +4,7 @@ import { UCI_2027_RACES } from './uci-2027';
 import { applyExcelRaceLevels } from './race-level-data';
 import { applyLatestExcelRaceLevels } from './excel-rank-apply';
 import type { ExcelLevelSymbol } from './race-level-data';
+import { dataOrigin } from './site';
 
 /** European U19 2026 race archive (user-supplied source ZIP dated 2026-10-23).
  * Each row is an original record; 'merged' and duplicate rows remain auditable but
@@ -29,32 +30,33 @@ export type RaceManifest = {
   sourceMap?: { method: string; sources: { name: string; url: string }[] };
 };
 const ROOT = '/data/2026/';
+const dataUrl = (path: string) => dataOrigin() + path;
 export const visibleRace = (r: U19Race) => r.state !== 'merged' && !r.duplicate && r.type !== 'Running';
 export const safeUrl = (url?: string) => typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
-export const countryLabel = (code: string, fallback: string) => {
+export const countryLabel = (code: string, fallback: string, locale = 'en') => {
   if (code === 'XK') return 'Kosovo';
-  try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || fallback; }
+  try { return new Intl.DisplayNames([locale], { type: 'region' }).of(code) || fallback; }
   catch { return fallback || code; }
 };
-export const niceDate = (date?: string) => {
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Date unconfirmed';
+export const niceDate = (date?: string, locale = 'en-GB', unconfirmed = 'Date unconfirmed') => {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return unconfirmed;
   const d = new Date(`${date}T12:00:00Z`);
-  return Number.isNaN(d.getTime()) ? 'Date unconfirmed' : new Intl.DateTimeFormat('en-GB', {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(d);
+  return Number.isNaN(d.getTime()) ? unconfirmed : new Intl.DateTimeFormat(locale, {day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(d);
 };
 async function loadArchive(onProgress?: (loaded: number,total: number) => void, signal?: AbortSignal): Promise<{ manifest: RaceManifest, races: U19Race[] }> {
-  const m = await fetch(ROOT + 'manifest.json', {signal: signal ?? null});
+  const m = await fetch(dataUrl(ROOT + 'manifest.json'), {signal: signal ?? null});
   if (!m.ok) throw new Error(`Failed to load race manifest (${m.status})`);
   const manifest: RaceManifest = await m.json();
   const races: U19Race[] = [];
-  // Four concurrent downloads avoid a large burst on slow mobile connections.
+  // Six concurrent downloads keep loading quick without a large burst on mobile.
   // Retry transient failures, but never silently display an incomplete archive.
-  const workerCount = Math.min(4, manifest.parts.length);
+  const workerCount = Math.min(6, manifest.parts.length);
   const getPart = async (part: string): Promise<unknown[][]> => {
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       try {
-        const resp = await fetch(ROOT + part, { signal: signal ?? null });
+        const resp = await fetch(dataUrl(ROOT + part), { signal: signal ?? null });
         if (!resp.ok) throw new Error(`Failed to load ${part} (${resp.status})`);
         return await resp.json();
       } catch (error) {
@@ -108,7 +110,7 @@ export async function loadU19Races(onProgress?: (loaded:number,total:number)=>vo
   let races: U19Race[] = applySourceUpdates(year===2026?base.races:mergeConfirmed2027(base.races,payload),payload).map(r=>correctDiscipline({...r}));
   if(year!==2026){
     try{
-      const response=await fetch('/data/2027/edition-links.json',{signal:signal??null});
+      const response=await fetch(dataUrl('/data/2027/edition-links.json'),{signal:signal??null});
       if(response.ok){
         const links=await response.json() as Record<string,string>;
         races=races.map(r=>{
@@ -139,7 +141,7 @@ export async function loadU19Race(id:string, signal?:AbortSignal):Promise<U19Rac
   }
   const shard=Array.from(id).reduce((sum,c)=>sum+c.charCodeAt(0),0)%16;
   const fetchJson=async(path:string)=>{
-    const response=await fetch(ROOT+path,{signal:signal??null});
+    const response=await fetch(dataUrl(ROOT+path),{signal:signal??null});
     if(!response.ok)throw new Error(`Failed to load race data (${response.status})`);
     return response.json();
   };

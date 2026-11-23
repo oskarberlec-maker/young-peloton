@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { SiteHeader } from '@/components/SiteHeader';
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowLeft, ExternalLink, Github } from 'lucide-react';
 import { REPORT_TYPES, type ReportType } from '@/lib/issue-report';
@@ -64,11 +65,7 @@ function ReportPage() {
   };
 
   return <main className="min-h-screen bg-slate-50 text-slate-900">
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto max-w-3xl px-5 py-5">
-        <Link to="/" className="font-black tracking-tight">YOUNG <span className="text-sky-700">PELOTON</span></Link>
-      </div>
-    </header>
+    <SiteHeader />
     <div className="mx-auto max-w-3xl px-5 py-8 sm:py-12">
       <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-700 hover:underline"><ArrowLeft size={16}/> Back to races</Link>
       <div className="mt-7 flex items-start gap-3">
