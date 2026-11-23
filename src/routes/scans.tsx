@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { SiteHeader } from '@/components/SiteHeader';
 import { useEffect, useState } from 'react';
 import { loadScanHistory, scanDay, type ScanRun } from '@/lib/scan-history';
 
@@ -23,7 +24,7 @@ function ScanHistory(){
   const selected=days.includes(day)?day:days[0]||'';
   const daily=runs.filter(r=>scanDay(r.lastRunAt)===selected);
   return <main className="min-h-screen bg-background text-foreground">
-    <header className="border-b border-border bg-slate-950 px-5 py-5 text-white"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4"><Link to="/" className="font-black tracking-tight">YOUNG <span className="text-cyan-400">PELOTON</span></Link><Link to="/" className="text-sm underline">Back to races</Link></div></header>
+    <SiteHeader />
     <div className="mx-auto max-w-5xl space-y-7 px-5 py-10">
       <div><p className="text-xs font-bold uppercase tracking-widest text-sky-700">Source monitoring</p><h1 className="mt-2 text-4xl font-bold">Daily scan history</h1><p className="mt-3 text-slate-600">See what each published source check found. Reports are grouped by day, with every published run kept when checks ran more than once.</p><p className="mt-2 text-sm text-slate-500">Times use Europe/Ljubljana. Days without a published report are not listed. This is an archive, not a live progress indicator.</p></div>
       {loading?<p role="status">Loading scan history…</p>:runs.length===0?<div role="alert" className="rounded-lg border p-5"><p>Scan history could not be loaded. Race data is still available.</p><button onClick={()=>setAttempt(x=>x+1)} className="mt-3 underline">Try again</button></div>:<>

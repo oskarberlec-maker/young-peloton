@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { SiteHeader } from '@/components/SiteHeader';
 export const Route = createFileRoute('/about')({
   head: () => ({ meta: [
     { title: 'About & Methodology — Young Peloton' },
@@ -9,7 +10,7 @@ export const Route = createFileRoute('/about')({
 });
 function About() {
   return <main className="min-h-screen bg-background text-foreground">
-    <header className="border-b border-border bg-slate-950 px-5 py-5 text-white"><div className="mx-auto max-w-4xl"><Link to="/" className="font-black tracking-tight">YOUNG <span className="text-cyan-400">PELOTON</span></Link></div></header>
+    <SiteHeader />
     <article className="mx-auto max-w-4xl space-y-7 px-5 py-12 leading-relaxed">
       <div><p className="text-sm font-semibold uppercase tracking-widest text-sky-700">About the project</p><h1 className="mt-2 text-4xl font-bold">Making junior cycling races easier to find</h1></div>
       <p>Young Peloton is an independent European U19 cycling race discovery project designed for riders, coaches and clubs. The aim is to bring fragmented national calendar information into a searchable archive with links to original sources.</p>

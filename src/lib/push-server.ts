@@ -155,7 +155,7 @@ export async function pendingForSubscription(entry: StoredSubscription, events: 
 }
 export async function deliverOne(subscription: WebPushSubscription, event: PublishedConfirmation) {
   const vapid={
-    subject: process.env['VAPID_SUBJECT'] || 'https://young-peloton.vercel.app',
+    subject: process.env['VAPID_SUBJECT'] || 'https://www.youngpeloton.eu',
     publicKey:process.env['VAPID_PUBLIC_KEY'] || '',
     privateKey:process.env['VAPID_PRIVATE_KEY'] || '',
   };

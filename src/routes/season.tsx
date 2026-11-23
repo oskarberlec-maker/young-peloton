@@ -1,4 +1,5 @@
 import { englishPlace } from '@/lib/u19-english';
+import { SiteHeader } from '@/components/SiteHeader';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Bookmark, CalendarDays, Download, Upload } from 'lucide-react';
@@ -7,7 +8,6 @@ import { downloadIcs } from '@/lib/race-calendar';
 import { useRacingSeason } from '@/lib/use-racing-season';
 import { safeSavedIds } from '@/lib/season-storage';
 import { getRaceLevel } from '@/lib/race-level';
-import { InstallAppButton } from '@/components/InstallAppButton';
 import { SavedRaceAlertsPanel } from '@/components/SavedRaceAlertsPanel';
 import { PushNotificationPanel } from '@/components/PushNotificationPanel';
 
@@ -89,12 +89,7 @@ function SavedPage() {
   };
 
   return <main className="min-h-screen bg-background text-foreground">
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5">
-        <Link to="/" className="text-xl font-black tracking-tight">YOUNG <span className="text-sky-700">PELOTON</span></Link>
-        <div className="flex items-center gap-3"><InstallAppButton /><Link to="/" className="text-sm text-sky-700 underline">Explore races</Link></div>
-      </div>
-    </header>
+    <SiteHeader />
     <div className="mx-auto max-w-6xl space-y-7 px-5 py-10">
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-sky-700">No login required</p>
