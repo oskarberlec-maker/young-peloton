@@ -13,6 +13,7 @@ export type SourceSyncStatus = {
   deferred?: number; notModified?: number; historicalSources?: number;
   discovered2027Sources?: number; dateConflicts?: number;
   retries?: number; durationSeconds?: number; startedAt?: string; readerVersion?: number;
+  notDueToday?: number; parkedHostSources?: number;
 };
 type Override = { fields: Partial<U19Race>; updatedAt: string; sourceUrl: string; adapter: string };
 const fields = new Set(['date','enddate','name','place','type','state','liveLevel','uciClass','lat','lon','precision']);

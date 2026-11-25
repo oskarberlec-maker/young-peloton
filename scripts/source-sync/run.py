@@ -23,7 +23,9 @@ from pdf_evidence import pdf_evidence
 from conflicts import reconcile
 from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
 
-from reporting import review_category, coverage
+from reporting import review_category, coverage, review_reasons, review_issue, legacy_review_reasons, host_summaries
+from scheduling import (had_2027_evidence, is_cold, cold_due, parked_hosts, choose_probes,
+                        update_host_blocks)
 
 ROOT = Path(__file__).resolve().parents[2]
 READER_VERSION = 9
@@ -140,13 +142,34 @@ def run(args):
                 registry[url]['races'].update(ids)
         except (ValueError, KeyError, TypeError):
             continue
+    priority = [u for u in registry if re.search(r'(?<!\d)2027(?!\d)', u) or any(by_id.get(i, {}).get('date', '').startswith('2027-') for i in registry[u]['races'])]
+    # Sources that can affect 2027 data run daily. Sources whose last full read
+    # found no 2027 evidence rotate weekly; hosts denying access for several
+    # consecutive days are parked and probed weekly. --full disables both.
+    today = dt.date.fromisoformat(now[:10])
+    tiered = not args.fixtures and not getattr(args, 'full', False)
+    previous_sources = previous.get('sources', {})
+    host_blocks = previous.get('hostBlocks', {})
+    parked = parked_hosts(host_blocks) if tiered else set()
+    probes = choose_probes(sorted(registry), previous_sources, parked, host_blocks, today)
+    always_daily = set(priority) | set(discovery_registry) | set(federation_seeds)
+    skipped = {}
+    for u in registry:
+        host = urlsplit(u).hostname
+        if host in parked:
+            if probes.get(host) != u:
+                skipped[u] = 'parkedHost'
+            # The weekly probe is always sent, even if the rotation would skip it.
+        elif (tiered and u not in always_daily and is_cold(previous_sources.get(u), READER_VERSION)
+              and not cold_due(u, previous_sources[u], today)):
+            skipped[u] = 'notDueToday'
     # Interleave hosts so thousands of one federation's pages don't block all workers.
     from collections import defaultdict, deque
     groups = defaultdict(deque)
     for u in sorted(registry):
-        groups[urlsplit(u).hostname].append(u)
-    priority = [u for u in registry if re.search(r'(?<!\d)2027(?!\d)', u) or any(by_id.get(i, {}).get('date', '').startswith('2027-') for i in registry[u]['races'])]
-    urls = list(priority)
+        if u not in skipped:
+            groups[urlsplit(u).hostname].append(u)
+    urls = [u for u in priority if u not in skipped]
     priority = set(priority)
     while groups:
         for host in list(groups):
@@ -166,6 +189,9 @@ def run(args):
     counts = {**link_metrics,'excelSourceRows':28975,'excelUniquePairs':imported_pairs,
               'excelRaceIds':len(imported_excel),'excelUnmappedRaceIds':len(unmapped_excel_ids),
               'catalogueRaces':len(catalog),'catalogueLinks':catalog_count,'totalSources': len(registry), 'attempted': 0, 'successful': 0, 'errors': 0, 'supportedSources': 0, 'changedSources': 0, 'needsReview': 0, 'updatedRaces': 0, 'deferred': 0, 'notModified': 0, 'historicalSources': 0, 'discovered2027Sources': 0}
+    counts['notDueToday'] = sum(reason == 'notDueToday' for reason in skipped.values())
+    counts['parkedHostSources'] = sum(reason == 'parkedHost' for reason in skipped.values())
+    counts['scheduledSources'] = len(urls)
     review = []
     fixtures = Path(args.fixtures) if args.fixtures else None
 
@@ -219,8 +245,12 @@ def run(args):
                         changes, evidence = interpret_observation(rid, observed, url)
                         updates.extend(changes)
                         record.setdefault('observations', {})[rid] = evidence
-                pending_review = {'sourceUrl': url, 'reason': 'Previously detected source change still needs a supported reader or review'} if record.get('needsReview') else None
-                return url, record, updates, pending_review, [tuple(item) for item in prev.get('discoveryCandidates', [])]
+                # An unchanged representation keeps its last reasons; legacy records
+                # are reclassified rather than staying flagged indefinitely.
+                reasons = prev['reviewReasons'] if 'reviewReasons' in prev else legacy_review_reasons(prev)
+                record.pop('hadTargetEvidence', None)
+                record.update(reviewReasons=reasons, needsReview=bool(reasons), had2027Evidence=had_2027_evidence(prev))
+                return url, record, updates, review_issue(url, reasons), [tuple(item) for item in prev.get('discoveryCandidates', [])]
             record.pop('uciDetail', None)
             record.pop('ffcDetail', None)
             record.pop('ffcNonJunior', None)
@@ -240,12 +270,17 @@ def run(args):
                     evidence = pdf_evidence(body)
                 except ValueError as error:
                     evidence = {'has2027': False, 'snippets': [], 'publication': 'manual-review-only', 'error': str(error)}
+                # PDFs never publish; only those mentioning 2027 are worth a reviewer's time.
+                reasons = ['pdf_2027_review'] if evidence['has2027'] else []
+                record.pop('hadTargetEvidence', None)
                 record.update(result, readerVersion=READER_VERSION, hash=raw_hash, rawHash=raw_hash,
                               status='ok', lastCheckedAt=now, observations={}, supportedRecords=0,
-                              notModified=False, changed=False, needsReview=True, pdfEvidence=evidence,
-                              targetYearEvidence=evidence['has2027'])
-                return url, record, [], {'sourceUrl': url, 'reason': 'PDF calendar requires manual identity and category review',
-                                         'pdfEvidence': evidence}, []
+                              notModified=False, changed=False, needsReview=bool(reasons), reviewReasons=reasons,
+                              pdfEvidence=evidence, targetYearEvidence=evidence['has2027'], had2027Evidence=False)
+                issue = review_issue(url, reasons)
+                if issue:
+                    issue['pdfEvidence'] = evidence
+                return url, record, [], issue, []
             observations = {}
             updates, parse_errors = [], []
             supported = 0
@@ -289,7 +324,7 @@ def run(args):
             for missing_id in sorted(set(prev.get('observations', {})) - set(observations)):
                 parse_errors.append({'raceId': missing_id, 'reason': 'Previously supported 2027 evidence is no longer present'})
             target_year = bool(page is not None and has_2027_dates(page))
-            had_target_evidence = bool(prev.get('hadTargetEvidence') or prev.get('observations'))
+            had_target_evidence = had_2027_evidence(prev)
             historical = bool(page is not None and (re.search(r'(?<!\d)2026(?!\d)', url) or has_year_dates(page, 2026))
                               and not target_year and not supported and not had_target_evidence)
             changed = bool(prev.get('hash') and prev['hash'] != page_hash)
@@ -301,16 +336,21 @@ def run(args):
             calendar_read = bool(record['ffcCalendarEntries'])
             if calendar_read:
                 changed = False
-            needs_review = not calendar_read and bool((target_year and not supported) or parse_errors or result['redirectedHost'] or (changed and not supported and not historical) or (prev.get('observations') and not supported) or (prev.get('needsReview') and not supported and not historical))
+            # Reasons are recomputed from this read; nothing stays flagged merely
+            # because it was flagged before. A changed page without 2027 evidence
+            # is not a review item. Lost validated 2027 evidence always is.
+            reasons = [] if calendar_read else review_reasons(
+                target_year=target_year, supported=bool(supported), parse_errors=bool(parse_errors),
+                redirected=result['redirectedHost'], had_2027=had_target_evidence)
             known_edition = any(by_id.get(rid, {}).get('date', '').startswith('2027-') for rid in registry[url]['races'])
             if record.get('ffcNonJunior') and not (known_edition or supported or parse_errors or had_target_evidence or prev.get('ffcDetail')):
-                needs_review = False
+                reasons = []
                 changed = False
-            record.update(result, readerVersion=READER_VERSION, historicalOnly=historical, targetYearEvidence=target_year, hadTargetEvidence=bool(had_target_evidence or observations), notModified=False, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=needs_review)
+            record.pop('hadTargetEvidence', None)
+            record.update(result, readerVersion=READER_VERSION, historicalOnly=historical, targetYearEvidence=target_year, had2027Evidence=bool(had_target_evidence or observations), notModified=False, hash=page_hash, rawHash=raw_hash, status='ok', lastCheckedAt=now, observations=observations, supportedRecords=supported, changed=changed, needsReview=bool(reasons), reviewReasons=reasons)
             for key in ('error',):
                 record.pop(key, None)
-            reason = {'sourceUrl': url, 'reason': 'Changed or unparseable source; no speculative update', 'details': parse_errors[:10]} if needs_review else None
-            return url, record, updates, reason, candidates
+            return url, record, updates, review_issue(url, reasons, parse_errors), candidates
         except Exception as e:
             if url.startswith('https://www.uci.org/competition-details/2027/ROA/'):
                 uci_responses[url] = e
@@ -320,6 +360,7 @@ def run(args):
             return url, record, [], {'sourceUrl': url, 'reason': record['error'], 'deferred': isinstance(e, DeferredSource)}, []
 
     discovered = {}
+    promoted = set()
 
     def collect(results):
         for url, record, updates, issue, candidates in results:
@@ -335,6 +376,9 @@ def run(args):
             new_editions.extend(p for p in updates if 'newEdition' in p)
             proposed.extend(p for p in updates if 'newEdition' not in p)
             for child, rid in candidates:
+                if skipped.get(child) == 'notDueToday':
+                    # A fresh link from a checked page makes a cold source relevant today.
+                    promoted.add(child)
                 if child in registry:
                     if rid is not None and rid not in registry[child]['primary']:
                         entry = state['discoveredSources'].setdefault(child, {'parent': url, 'raceIds': []})
@@ -360,7 +404,12 @@ def run(args):
                 state['discoveredSources'][url] = {'parent': entry['parent'], 'raceIds': sorted(entry['races']), 'federationCandidate': not entry['races']}
             counts['discovered2027Sources'] = len(children)
             counts['totalSources'] = len(registry)
-            collect(pool.map(check, children))
+            # Rotation-skipped sources linked from today's pages are checked now.
+            for url in promoted:
+                skipped.pop(url, None)
+            counts['promotedFromRotation'] = len(promoted)
+            counts['notDueToday'] -= len(promoted)
+            collect(pool.map(check, children + sorted(promoted - set(children))))
 
     # All calendar/detail requests share the registry and bounded discovery pool.
     # On 304 the validated fields and calendar identities remain available; only
@@ -580,6 +629,27 @@ def run(args):
         history['changes'].append({'at': now, 'raceId': rid, 'sourceUrl': change['sourceUrl'], 'adapter': change['adapter'], 'before': before, 'after': change['fields']})
     counts['existingDatesUpdated'] = len({p['raceId'] for p in proposed})
     counts['updatedRaces'] = len({p['raceId'] for p in proposed}) + added
+    # Persist consecutive blocked days per host. A parked host is one actionable
+    # item, not thousands of daily deferrals.
+    attempted_by_host = defaultdict(list)
+    for url, rec in state['sources'].items():
+        if rec.get('lastAttemptAt') == now:
+            attempted_by_host[urlsplit(url).hostname].append(rec)
+    state['hostBlocks'] = update_host_blocks(host_blocks, attempted_by_host, dict(fetcher.blocked),
+                                             set(probes), today, now)
+    skipped_by_host = Counter(urlsplit(u).hostname for u, why in skipped.items() if why == 'parkedHost')
+    counts['parkedHosts'] = {}
+    for host in sorted(parked):
+        block = state['hostBlocks'].get(host)
+        if not block:
+            continue  # Its probe succeeded this run; all sources return tomorrow.
+        counts['parkedHosts'][host] = {k: block.get(k) for k in ('days', 'since', 'reason', 'lastProbeAt')} | {
+            'skippedSources': skipped_by_host[host]}
+        review.append({'sourceUrl': 'https://' + host + '/', 'category': 'host_parked',
+                       'skippedSources': skipped_by_host[host],
+                       'reason': f"Host parked after {block.get('days')} consecutive blocked days "
+                                 f"({block.get('reason')}); {skipped_by_host[host]} sources not checked, "
+                                 f"probed weekly. Consider removing these sources or requesting access."})
     # Review categories distinguish access failures, unsupported readers,
     # and genuine identity/date conflicts. Large source lists must be
     # understandable without downloading thousands of individual rows.
@@ -610,8 +680,9 @@ def run(args):
     counts['newlyConfirmedRaceDates'] = added
     counts['new2027RacesDiscovered'] = len({item['newEdition']['id'] for item in new_editions if not item['newEdition'].get('source2026Id')
                                           and item['newEdition']['id'] in added_ids})
+    counts.update(host_summaries(review, registry, state['sources'], now))
     priority_review = sorted((item for item in review if not item.get('deferred')), key=lambda item: (
-        item.get('category') not in ('date_conflict', 'identity_conflict'),
+        item.get('category') not in ('date_conflict', 'identity_conflict', 'lost_2027_evidence'),
         not state['sources'].get(item.get('sourceUrl'), {}).get('targetYearEvidence', False),
         item.get('host') not in ('competitions.ffc.fr', 'www.federciclismo.it', 'cycling.vlaanderen', 'mijn.knwu.nl'),
         item.get('sourceUrl', '')))
@@ -622,11 +693,11 @@ def run(args):
     counts['retries'] = fetcher.retries
     counts['deferredHosts'] = dict(sorted(fetcher.blocked.items()))
     counts['durationSeconds'] = round(time.monotonic() - started, 2)
-    counts.update(coverage(registry, state['sources'], by_id, now))
+    counts.update(coverage(registry, state['sources'], by_id, now, skipped))
     state['hostCooldowns'] = {host: until for host, until in fetcher.cooldowns.items() if until > time.time()}
     finished = dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
     # Keep history complete in the data branch (Git also preserves prior snapshots).
-    status = {'schemaVersion': 1, 'lastRunAt': finished, 'startedAt': now, 'readerVersion': READER_VERSION, 'complete': counts['attempted'] == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'verified 2027 dates of known or uniquely identified new UCI/FFC U19 road races', 'note': 'All source URLs are accounted for. Transient failures receive bounded retries; repeated access denials defer the remaining host sources until the next run without bypassing restrictions. Explicit same-site 2027 links are checked with the same identity and date rules. Conflicting dates are retained for review. 2026 archives are preserved.'}
+    status = {'schemaVersion': 1, 'lastRunAt': finished, 'startedAt': now, 'readerVersion': READER_VERSION, 'complete': counts['attempted'] + len(skipped) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'verified 2027 dates of known or uniquely identified new UCI/FFC U19 road races', 'note': 'All source URLs are accounted for: checked, waiting for their weekly recheck (no 2027 information found), or on a parked host. Transient failures receive bounded retries; repeated access denials defer the remaining host sources without bypassing restrictions, and hosts blocked for several consecutive days are parked and probed weekly. Explicit same-site 2027 links are checked with the same identity and date rules. Conflicting dates are retained for review. 2026 archives are preserved.'}
     overlay['updatedAt'] = now
     for name, data in [('state', state), ('overrides', overlay), ('history', history), ('status', {k:v for k,v in status.items() if k != 'review'}), ('report', status)]:
         (out / (name + '.json')).write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '\n')
@@ -642,4 +713,6 @@ if __name__ == '__main__':
     parser.add_argument('--limit', type=int, default=0)
     parser.add_argument('--workers', type=int, default=12)
     parser.add_argument('--fixtures')
+    parser.add_argument('--full', action='store_true',
+                        help='Check every registered source, ignoring the weekly rotation and parked hosts')
     run(parser.parse_args())

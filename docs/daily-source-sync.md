@@ -366,3 +366,58 @@ start). This is reader verification, not a claim that all four are new to the
 published catalogue; the normal pipeline still deduplicates them.
 The captured Pévèle event header is a regression fixture. V9 increments the
 reader version so cached V8 observations are not reused without rereading.
+
+## V10: weekly rotation, parked hosts and actionable review (26 November 2026)
+
+Measured on the 25 November run: 14,281 sources, 2 h 37 min, 121 sources with
+readable 2027 evidence, 3,813 deferred URLs (3,226 from one host that denies
+access every day) and 7,529 review items. 3,168 of the review items came from a
+legacy `hadTargetEvidence` flag set by pre-2027 readers that never reset, and
+2,646 more only from carrying the previous run's flag forward.
+
+**Weekly rotation.** A source is *cold* when its last full read (current reader
+version) was successful and found nothing that can affect 2027 data: no
+observations, no supported records, no 2027 dates, no validated 2027 history,
+no FFC calendar/detail/non-junior record, no UCI detail, no review reason and
+no discovery links. Cold sources are checked on a deterministic weekly slot
+(`sha256(url) % 7`), with a catch-up if more than 7 days passed. Sources with a
+2027 URL, sources linked to a 2027 race, discovered sources and federation
+calendar seeds are always checked daily. A cold source linked from a page
+checked today is promoted and checked the same day. New sources, errors and
+deferrals are never cold. A reader version change makes every source hot once.
+
+**Parked hosts.** `state.json.hostBlocks` counts consecutive calendar days on
+which a host was blocked (repeated 403, 429/Retry-After or repeated network
+failures). After 3 days the host is parked: its sources are not requested and
+the report contains one `host_parked` review item instead of thousands of
+deferrals. One source per parked host (the least recently tried) is probed
+weekly. Any reachable response (success, 304, or a page-level 404/410)
+releases the host and its sources return the next day.
+
+**Review reasons.** Each full read computes `reviewReasons`; nothing stays
+flagged because it was flagged before. A changed page without 2027 evidence is
+not a review item. Reasons, most important first: `lost_2027_evidence`
+(validated 2027 observations are no longer readable; persists until resolved),
+`unsupported_or_changed` (a supported reader raised a parse error),
+`needs_reader_2027` (2027 dates but no reader), `redirected`. PDFs are review
+items only when they mention 2027 (`pdf_2027_review`). On a 304 the previous
+reasons are reused; pre-V10 records are reclassified from stored evidence.
+`had2027Evidence` replaces the legacy `hadTargetEvidence`.
+
+**Reporting.** `status.json` adds `scheduledSources`, `notDueToday`,
+`promotedFromRotation`, `parkedHostSources`, `parkedHosts`, `reviewByHost`
+(review items grouped per host) and `hostsWithoutReader` (sources reached
+without a usable reader, ranked by linked races: the priority list for new
+readers). `sourceOutcomes` adds `notDueToday` and `parkedHost`. A report is
+`complete` when `attempted + notDueToday + parkedHostSources == totalSources`;
+skipped sources keep their previous records and are never counted as successful.
+
+**Full scan.** `run.py --full`, or Actions → Daily race source sync → Run
+workflow with *full* checked, ignores the rotation and parked hosts.
+
+Simulated on the 25 November state: about 1,900 URLs per day once the
+denying hosts are parked (about 35 minutes of serial FFC requests instead of
+about 2.5 hours), and 320 review flags on readable sources instead of 7,189,
+before redirects, conflicts and eligibility items are added. The rules that
+decide what is published are unchanged; READER_VERSION stays 9 because no
+reader changed.
