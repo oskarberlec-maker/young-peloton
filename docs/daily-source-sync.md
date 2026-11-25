@@ -412,8 +412,9 @@ readers). `sourceOutcomes` adds `notDueToday` and `parkedHost`. A report is
 `complete` when `attempted + notDueToday + parkedHostSources == totalSources`;
 skipped sources keep their previous records and are never counted as successful.
 
-**Full scan.** `run.py --full`, or Actions → Daily race source sync → Run
-workflow with *full* checked, ignores the rotation and parked hosts.
+**Full scan.** `run.py --full` ignores the rotation and parked hosts. The
+workflow does not expose this yet; adding a `full` input to
+`.github/workflows/daily-sources.yml` needs a push with the `workflow` scope.
 
 Simulated on the 25 November state: about 1,900 URLs per day once the
 denying hosts are parked (about 35 minutes of serial FFC requests instead of
