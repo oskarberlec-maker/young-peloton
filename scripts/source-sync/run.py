@@ -16,9 +16,9 @@ from confirmations import dates_only, edition, identity, CALENDAR
 from uci_discovery import calendar_entries, matching_2026_edition, confirmed_uci_detail, edition_from_uci_calendar
 from core import canonical, Page, normalized
 from catalogue import linked_source_catalogue, excel_result_sources
-from transport import Fetcher, DeferredSource
+from transport import Fetcher, DeferredSource, moved_resource
 from discovery import edition_links
-from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, has_year_dates, calendar_date_evidence
+from federation_calendar import calendar_seeds, FFCCalendar, calendar_links, has_2027_dates, has_year_dates, calendar_date_evidence, ffc_calendar_empty
 from pdf_evidence import pdf_evidence
 from conflicts import reconcile
 from ffc_discovery import calendar_entries as ffc_entries, detail as ffc_detail, non_junior_detail
@@ -254,6 +254,16 @@ def run(args):
             record.pop('uciDetail', None)
             record.pop('ffcDetail', None)
             record.pop('ffcNonJunior', None)
+            record.pop('ffcCalendarEmpty', None)
+            # A redirect that kept the resource (domain migration, same-depth move
+            # on the same site) is read at its new location; others stay review.
+            moved = bool(result['redirectedHost']) and moved_resource(url, result.get('finalUrl', url))
+            read_url = result['finalUrl'] if moved else url
+            unread_redirect = bool(result['redirectedHost']) and not moved
+            if moved:
+                record['movedTo'] = read_url
+            else:
+                record.pop('movedTo', None)
             body = result.pop('body')
             raw_hash = hashlib.sha256(body).hexdigest()
             decoded = body.decode('utf-8', errors='replace')
@@ -261,7 +271,7 @@ def run(args):
             page = None
             if 'html' in result['contentType']:
                 page = Page(decoded)
-                if urlsplit(url).hostname == 'competitions.ffc.fr' and urlsplit(url).path.rstrip('/') == '/calendrier':
+                if urlsplit(read_url).hostname == 'competitions.ffc.fr' and urlsplit(read_url).path.rstrip('/') == '/calendrier':
                     page.ffc_calendar = FFCCalendar(decoded).entries
                 # Exclude scripts/tokens and style churn from unsupported-page notices.
                 page_hash = hashlib.sha256(('\n'.join(page.lines) + json.dumps(page.ld, sort_keys=True) + json.dumps(page.props, sort_keys=True)).encode()).hexdigest()
@@ -284,18 +294,18 @@ def run(args):
             observations = {}
             updates, parse_errors = [], []
             supported = 0
-            if not result['redirectedHost']:
+            if not unread_redirect:
                 # Shared calendar URLs cannot safely identify individual subraces
                 # unless the reader itself verifies a stable ID.
                 # Result and eligibility links may also publish structured 2027
                 # editions. Only process secondary URLs with explicit Schema.org
                 # data; broad result lists and plain-text year mentions do not qualify.
                 secondary = (registry[url]['secondary'] - registry[url]['primary']) if (page is not None and has_2027_dates(page) and
-                    ('application/ld+json' in decoded.lower() or urlsplit(url).hostname in ('competitions.ffc.fr', 'www.federciclismo.it'))) else set()
+                    ('application/ld+json' in decoded.lower() or urlsplit(read_url).hostname in ('competitions.ffc.fr', 'www.federciclismo.it'))) else set()
                 for rid in sorted(registry[url]['primary'] | secondary):
                     race = by_id[rid]
                     try:
-                        observed = dates_only(decoded, result['contentType'], race, url, page=page,
+                        observed = dates_only(decoded, result['contentType'], race, read_url, page=page,
                                               linked_edition=url in state['discoveredSources'])
                         if observed:
                             supported += 1
@@ -305,21 +315,23 @@ def run(args):
                     except (ValueError, KeyError, TypeError) as e:
                         parse_errors.append({'raceId': rid, 'reason': str(e)[:200]})
             record['ffcCalendarEntries'] = []
-            if page is not None and not result['redirectedHost']:
-                record['ffcCalendarEntries'] = ffc_entries(page, url)
+            if page is not None and not unread_redirect:
+                record['ffcCalendarEntries'] = ffc_entries(page, read_url)
+                if not record['ffcCalendarEntries'] and ffc_calendar_empty(page, read_url):
+                    record['ffcCalendarEmpty'] = True
                 try:
-                    record['ffcDetail'] = ffc_detail(page, url, now)
-                    record['ffcNonJunior'] = non_junior_detail(page, url) if not record['ffcDetail'] else None
+                    record['ffcDetail'] = ffc_detail(page, read_url, now)
+                    record['ffcNonJunior'] = non_junior_detail(page, read_url) if not record['ffcDetail'] else None
                     if record['ffcDetail']:
                         supported = max(1, supported)
                 except (ValueError, KeyError, TypeError) as e:
                     parse_errors.append({'reason': str(e)[:200]})
-                candidates.extend(calendar_links(page, url, known_names))
+                candidates.extend(calendar_links(page, read_url, known_names))
                 for rid in sorted(registry[url]['primary']):
                     if rid in by_id:
-                        candidates.extend((link, rid) for link in edition_links(page, by_id[rid], url))
+                        candidates.extend((link, rid) for link in edition_links(page, by_id[rid], read_url))
                 candidates.extend((entry['sourceUrl'], None) for entry in record['ffcCalendarEntries'])
-            record['calendarDateEvidence'] = calendar_date_evidence(page, url) if page is not None else {}
+            record['calendarDateEvidence'] = calendar_date_evidence(page, read_url) if page is not None else {}
             record['discoveryCandidates'] = [list(item) for item in dict.fromkeys(candidates)][:500]
             for missing_id in sorted(set(prev.get('observations', {})) - set(observations)):
                 parse_errors.append({'raceId': missing_id, 'reason': 'Previously supported 2027 evidence is no longer present'})
@@ -333,7 +345,8 @@ def run(args):
             if supported:
                 # For supported readers, actual field changes are the meaningful signal.
                 changed = bool(updates or parse_errors)
-            calendar_read = bool(record['ffcCalendarEntries'])
+            # An explicitly empty FFC search window is a complete read, not a gap.
+            calendar_read = bool(record['ffcCalendarEntries'] or record.get('ffcCalendarEmpty'))
             if calendar_read:
                 changed = False
             # Reasons are recomputed from this read; nothing stays flagged merely
@@ -341,7 +354,7 @@ def run(args):
             # is not a review item. Lost validated 2027 evidence always is.
             reasons = [] if calendar_read else review_reasons(
                 target_year=target_year, supported=bool(supported), parse_errors=bool(parse_errors),
-                redirected=result['redirectedHost'], had_2027=had_target_evidence)
+                redirected=unread_redirect, had_2027=had_target_evidence)
             known_edition = any(by_id.get(rid, {}).get('date', '').startswith('2027-') for rid in registry[url]['races'])
             if record.get('ffcNonJunior') and not (known_edition or supported or parse_errors or had_target_evidence or prev.get('ffcDetail')):
                 reasons = []
@@ -426,6 +439,8 @@ def run(args):
     counts['duplicatesSkipped'] = 0
     counts['ffcNonJuniorEntries'] = 0
     counts['ffcEntriesAwaitingVerification'] = 0
+    # Source-level review items, so one FFC event page is reported once.
+    source_issues = {item['sourceUrl']: item for item in review if item.get('reasons')}
     for url, candidates in ffc_candidates.items():
         details = current_sources.get(url, {}).get('ffcDetail')
         if not details:
@@ -438,8 +453,14 @@ def run(args):
                 continue
             counts['ffcEntriesAwaitingVerification'] += 1
             # Missing detail is not conflicting identity or proof of eligibility.
-            review.append({'sourceUrl': url, 'reason': 'FFC calendar entry awaits unambiguous U19 road detail verification',
-                           'category': 'eligibility_unverified' if rec else 'detail_unavailable'})
+            item = {'sourceUrl': url, 'reason': 'FFC calendar entry awaits unambiguous U19 road detail verification',
+                    'category': 'eligibility_unverified' if rec else 'detail_unavailable'}
+            # "2027 dates but no reader" says the same thing less precisely: merge it.
+            own = source_issues.get(url)
+            if own is not None and own.get('category') == 'needs_reader_2027':
+                review.remove(own)
+                item['reasons'] = [item['category'], *(r for r in own['reasons'] if r != 'needs_reader_2027')]
+            review.append(item)
             continue
         if any(normalized(candidate['name']) != normalized(details['name']) or
                'FR-FFC-' + candidate['eventId'] != details['officialEventId'] for _, candidate in candidates):
@@ -688,6 +709,11 @@ def run(args):
         item.get('sourceUrl', '')))
     counts['importantUnresolvedSources'] = [{k: item[k] for k in ('sourceUrl', 'reason', 'category') if k in item}
                                            for item in priority_review[:20]]
+    # Redirects read at their new location; the list lets a person update stored links in bulk.
+    moved_sources = sorted(({'sourceUrl': url, 'movedTo': rec['movedTo']} for url, rec in state['sources'].items()
+                            if rec.get('lastCheckedAt') == now and rec.get('status') == 'ok' and rec.get('movedTo')),
+                           key=lambda item: item['sourceUrl'])
+    counts['movedSources'] = len(moved_sources)
     counts['reportEntries'] = len(review)
     counts['httpRequests'] = fetcher.requests
     counts['retries'] = fetcher.retries
@@ -697,7 +723,7 @@ def run(args):
     state['hostCooldowns'] = {host: until for host, until in fetcher.cooldowns.items() if until > time.time()}
     finished = dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
     # Keep history complete in the data branch (Git also preserves prior snapshots).
-    status = {'schemaVersion': 1, 'lastRunAt': finished, 'startedAt': now, 'readerVersion': READER_VERSION, 'complete': counts['attempted'] + len(skipped) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'verified 2027 dates of known or uniquely identified new UCI/FFC U19 road races', 'note': 'All source URLs are accounted for: checked, waiting for their weekly recheck (no 2027 information found), or on a parked host. Transient failures receive bounded retries; repeated access denials defer the remaining host sources without bypassing restrictions, and hosts blocked for several consecutive days are parked and probed weekly. Explicit same-site 2027 links are checked with the same identity and date rules. Conflicting dates are retained for review. 2026 archives are preserved.'}
+    status = {'schemaVersion': 1, 'lastRunAt': finished, 'startedAt': now, 'readerVersion': READER_VERSION, 'complete': counts['attempted'] + len(skipped) == len(registry), 'mode': 'fixture' if fixtures else 'live', **counts, 'invalidSourceCount': len(invalid), 'review': review, 'movedSourcesList': moved_sources,'supportedAdapters': ['UCI 2027 competition details', 'FFC event records', 'FCI event records', 'Schema.org Event with exact name and season'], 'targetYear': 2027, 'updateScope': 'verified 2027 dates of known or uniquely identified new UCI/FFC U19 road races', 'note': 'All source URLs are accounted for: checked, waiting for their weekly recheck (no 2027 information found), or on a parked host. Transient failures receive bounded retries; repeated access denials defer the remaining host sources without bypassing restrictions, and hosts blocked for several consecutive days are parked and probed weekly. Explicit same-site 2027 links are checked with the same identity and date rules. Conflicting dates are retained for review. 2026 archives are preserved.'}
     overlay['updatedAt'] = now
     for name, data in [('state', state), ('overrides', overlay), ('history', history), ('status', {k:v for k,v in status.items() if k != 'review'}), ('report', status)]:
         (out / (name + '.json')).write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '\n')
