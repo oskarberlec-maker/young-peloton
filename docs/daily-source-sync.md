@@ -422,3 +422,48 @@ about 2.5 hours), and 320 review flags on readable sources instead of 7,189,
 before redirects, conflicts and eligibility items are added. The rules that
 decide what is published are unchanged; READER_VERSION stays 9 because no
 reader changed.
+
+## V11: one item per FFC event and redirects read at their new location (27 November 2026)
+
+Measured on the 27 November run: 866 review items, 706 of them on
+`competitions.ffc.fr`. 347 FFC event pages were reported twice (once as
+`needs_reader_2027`, once as `eligibility_unverified`), 7 were empty two-week
+calendar windows and 60 sources were `redirected`.
+
+**One item per FFC event.** When an FFC calendar entry awaits U19
+verification, the page's own `needs_reader_2027` item is merged into the
+`eligibility_unverified` item (other reasons are kept in `reasons`).
+
+**Explicit non-U19 FFC codes.** `ffc_categories.NON_JUNIOR_CODES` lists the
+Annexe II road codes whose official label names only non-U19 categories
+(Elite/Open/Access, U23, Masters, women without U19, U17 and younger,
+cyclosportives/randonnées, professional criteriums, other-category
+championships, Coupe de France N1/N2/N3). Women Elite UCI classes (`WE.x`)
+are excluded like `ME.x`. Every U19/junior code and every label that does not
+name a category (club, gentleman, corporatif, circuit fermé, divers, Avenir,
+Outre-Mer, contre-la-montre pour toutes et tous, brevet jeune cycliste) stays
+in review. This is a reporting exclusion only; the same safety checks apply
+(clean header, 2027, U19/junior not mentioned, known editions stay in review).
+On a random sample of 40 current `eligibility_unverified` pages, 39 are
+excluded; the remaining one is `1.52` (unlabelled).
+
+**Empty FFC calendar windows.** A search window that shows both
+"0 compétition du … au …" and "Aucune compétition à la date sélectionnée" is
+a complete read (`ffcCalendarEmpty`), not a missing reader. A layout change
+falls back to review.
+
+**Redirects.** `transport.moved_resource` accepts a redirect when the
+resource is the same: the identical path and query on a new host (rfec.com to
+the regional federation on the same platform, swisscycling.ch to
+swiss-cycling.ch, www/non-www), or a new path of the same depth on the same
+site (hri.is `/vidburdur/585` to `/keppni/671`). The page is then read at its
+new location with the normal readers (host dispatch uses the new URL) and
+`state.json` stores `movedTo`. Redirects to a home page, a shallower or
+deeper page, a login/error page or a different resource stay `redirected`.
+`status.json` adds `movedSources` and `report.json` adds `movedSourcesList`
+(old and new URL) for updating stored links in bulk; the race data on `main`
+is not rewritten by the scan. On the 27 November state, 67 of 85 redirected
+sources are accepted.
+
+Publication rules are unchanged; READER_VERSION stays 9 (FFC event pages,
+calendar seeds and redirected sources are rechecked daily anyway).

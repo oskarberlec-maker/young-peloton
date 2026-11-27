@@ -55,6 +55,22 @@ class FFCCalendar(HTMLParser):
                     break
 
 
+def ffc_calendar_empty(page, url):
+    """The FFC search window explicitly lists no event (checked 2026-11-27).
+
+    Both the zero counter and the empty-state message are required, so a
+    layout change falls back to review instead of silently reading as empty.
+    """
+    parts = urlsplit(url)
+    if parts.hostname != 'competitions.ffc.fr' or parts.path.rstrip('/') != '/calendrier':
+        return False
+    if getattr(page, 'ffc_calendar', None):
+        return False
+    lines = [normalized(line) for line in page.lines]
+    return (any(re.fullmatch(r'0 competitions? du .+ au .+', line) for line in lines)
+            and 'aucune competition a la date selectionnee' in lines)
+
+
 def calendar_links(page, source_url, known_names):
     """Follow explicit 2027 road entries; the detail must independently confirm."""
     if urlsplit(source_url).hostname != 'competitions.ffc.fr':

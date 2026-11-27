@@ -7,7 +7,7 @@ import re
 from urllib.parse import urlsplit, urljoin
 from core import canonical, normalized, read_ffc, validate
 from confirmations import edition
-from ffc_categories import junior_code
+from ffc_categories import junior_code, non_junior_code
 from federation_calendar import calendar_date_evidence
 
 # Explicit metropolitan department in the event header establishes France and
@@ -63,7 +63,8 @@ def _event_header(page, url):
 
 
 def non_junior_detail(page, url):
-    """Audit explicit Men Elite UCI classes; unknown/mixed codes stay in review.
+    """Audit explicit Men/Women Elite UCI classes and explicit non-U19 FFC
+    national codes (Annexe II); unknown/mixed codes stay in review.
 
     This is a reporting exclusion, never permission to modify a published race.
     """
@@ -71,7 +72,13 @@ def non_junior_detail(page, url):
     if not header:
         return None
     eid, code, i, name = header
-    if not re.fullmatch(r'ME\.[12]\.(?:PRO|Pro|1|2|UWT)', code):
+    if re.fullmatch(r'ME\.[12]\.(?:PRO|Pro|1|2|UWT)', code):
+        reason = 'Official event code identifies a Men Elite UCI class, not a junior class'
+    elif re.fullmatch(r'WE\.[12]\.(?:PRO|Pro|1|2|WWT)', code):
+        reason = 'Official event code identifies a Women Elite UCI class, not a junior class'
+    elif non_junior_code(code):
+        reason = f'Official FFC event code {code} ({non_junior_code(code)}) is not a U19 class'
+    else:
         return None
     category_text = ' '.join([name, *(page.after(k) or '' for k in ('Catégorie', 'Catégories'))])
     if re.search(r'\b(u19|junior\w*)\b', normalized(category_text)):
@@ -84,8 +91,7 @@ def non_junior_detail(page, url):
     if not all(v.startswith('2027-') for v in dates.values()):
         return None
     validate(dates, race)
-    return {'eventId': eid, 'name': name, 'code': code, **dates,
-            'reason': 'Official event code identifies a Men Elite UCI class, not a junior class'}
+    return {'eventId': eid, 'name': name, 'code': code, **dates, 'reason': reason}
 
 
 def explicit_junior_category(page, code):

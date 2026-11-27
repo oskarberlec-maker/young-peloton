@@ -1,5 +1,6 @@
 """Bounded, polite fetching. Never retry or circumvent access denials."""
 import ipaddress
+import re
 import socket
 import threading
 import time
@@ -15,6 +16,34 @@ UA = 'YoungPelotonSourceMonitor/2.0 (+https://www.youngpeloton.eu/)'
 
 class DeferredSource(ValueError):
     """A host has asked us to stop, or repeatedly denied access this run."""
+
+
+GONE_PATH = re.compile(r'(?i)(?:^|/)(?:login|signin|sign-in|auth|error|404|not-?found)(?:/|$|\.)')
+
+
+def _site(host):
+    host = (host or '').lower()
+    return host[4:] if host.startswith('www.') else host
+
+
+def moved_resource(original, final):
+    """A redirect that kept the same resource, so the new location can be read.
+
+    Accepted: the identical path and query on a new host (domain migration,
+    e.g. rfec.com to a regional federation on the same platform), or a new path
+    of the same depth on the same site (ignoring www). A redirect to a home
+    page, a shallower or deeper page, or a login/error page means the
+    resource is gone and stays a review item. Readers still verify identity.
+    """
+    o, f = urlsplit(original), urlsplit(final)
+    if not f.hostname or GONE_PATH.search(f.path):
+        return False
+    o_path, f_path = o.path.strip('/'), f.path.strip('/')
+    if (o_path, o.query) == (f_path, f.query):
+        return True
+    if not f_path or _site(o.hostname) != _site(f.hostname):
+        return False
+    return len(o_path.split('/')) == len(f_path.split('/'))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
